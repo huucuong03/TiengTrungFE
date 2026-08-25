@@ -53,7 +53,9 @@ interface LookedUpPreview {
   meaning: string;
 }
 
-const API_BASE = "https://tiengtrung-7hto.onrender.com/api/notebook";
+// Khai báo chuẩn API_BASE dùng biến môi trường hoặc fallback về Render
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "https://tiengtrung-7hto.onrender.com";
+const API_BASE = `${BACKEND_URL}/api/notebook`;
 
 export default function PracticePage() {
   const [words, setWords] = useState<NotebookWord[]>([]);
@@ -72,10 +74,16 @@ export default function PracticePage() {
   const [previewWord, setPreviewWord] = useState<LookedUpPreview | null>(null);
   const [savingWord, setSavingWord] = useState(false);
 
-  // Helper lấy token đăng nhập
-  const getAuthHeader = () => {
+  // Helper lấy token đăng nhập và cấu trúc headers an toàn TypeScript
+  const getAuthHeaders = (additionalHeaders: Record<string, string> = {}): Record<string, string> => {
     const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    const headers: Record<string, string> = {
+      ...additionalHeaders,
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    return headers;
   };
 
   // 1. Tải danh sách từ từ Database
@@ -86,10 +94,7 @@ export default function PracticePage() {
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/words`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeader(),
-        },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -138,7 +143,7 @@ export default function PracticePage() {
 
     try {
       const res = await fetch(
-        "https://tiengtrung-7hto.onrender.com/api/dictionary/quick-ai",
+        `${BACKEND_URL}/api/dictionary/quick-ai`,
         {
           method: "POST",
           headers: {
@@ -185,10 +190,7 @@ export default function PracticePage() {
     try {
       const res = await fetch(`${API_BASE}/words`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeader(),
-        },
+        headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify(previewWord),
       });
 
@@ -219,9 +221,7 @@ export default function PracticePage() {
     try {
       const res = await fetch(`${API_BASE}/words/${id}`, {
         method: "DELETE",
-        headers: {
-          ...getAuthHeader(),
-        },
+        headers: getAuthHeaders(),
       });
       if (res.ok) {
         message.success("Đã xóa từ khỏi sổ");
@@ -241,9 +241,7 @@ export default function PracticePage() {
     try {
       await fetch(`${API_BASE}/words/${id}/practice`, {
         method: "PATCH",
-        headers: {
-          ...getAuthHeader(),
-        },
+        headers: getAuthHeaders(),
       });
     } catch (err) {
       console.error(err);
@@ -390,7 +388,7 @@ export default function PracticePage() {
 
   return (
     <div style={{ maxWidth: 920, margin: "0 auto", padding: "24px 16px" }}>
-      <Space orientation="vertical" size="large" style={{ width: "100%" }}>
+      <Space direction="vertical" size="large" style={{ width: "100%" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
           <div>
             <Title level={2} style={{ margin: 0 }}>
@@ -423,7 +421,7 @@ export default function PracticePage() {
             value={searchText}
             onChange={(e) => {
               setSearchText(e.target.value);
-              setCurrentIndex(0); // Reset lại index khi tìm kiếm
+              setCurrentIndex(0);
             }}
             allowClear
             size="large"
@@ -490,9 +488,9 @@ export default function PracticePage() {
         open={isAddModalOpen}
         onCancel={() => setIsAddModalOpen(false)}
         footer={null}
-        destroyOnHidden
+        destroyOnClose
       >
-        <Space orientation="vertical" size="middle" style={{ width: "100%", marginTop: 8 }}>
+        <Space direction="vertical" size="middle" style={{ width: "100%", marginTop: 8 }}>
           <Text type="secondary" style={{ fontSize: 13 }}>
             Nhập chữ Hán hoặc bấm biểu tượng bút vẽ để vẽ tay chữ bạn muốn học:
           </Text>
