@@ -18,7 +18,8 @@ export default function WritingQuizCanvas({ character, wordId, onSuccess, onPena
   const [usedHint, setUsedHint] = useState(false);
   const [mistakes, setMistakes] = useState(0);
   const [isDone, setIsDone] = useState(false);
-
+  const screenWidth = typeof window !== "undefined" ? window.innerWidth : 400;
+  const canvasSize = screenWidth < 576 ? 260 : 300; // Tự thu nhỏ trên điện thoại
   const initWriter = () => {
     if (!containerRef.current || !character) return;
     containerRef.current.innerHTML = "";
@@ -29,9 +30,9 @@ export default function WritingQuizCanvas({ character, wordId, onSuccess, onPena
     try {
       // Khởi tạo HanziWriter ở chế độ ẩn nét mờ hoàn toàn (Thêm as any để tránh lỗi type)
       const writer = HanziWriter.create(containerRef.current, character, {
-        width: 260,
-        height: 260,
-        padding: 20,
+        width: canvasSize,
+        height: canvasSize,
+        padding: 15,
         showOutline: false,
         showCharacter: false,
         strokeColor: "#1677ff",
