@@ -48,7 +48,7 @@ export default function WritingQuizCanvas({ character, wordId, onSuccess, onPena
       writer.quiz({
         onMistake: () => {
           setMistakes((prev) => prev + 1);
-          
+
           if (onPenalty) {
             onPenalty(5);
           }
@@ -58,7 +58,7 @@ export default function WritingQuizCanvas({ character, wordId, onSuccess, onPena
         onComplete: async () => {
           setIsDone(true);
           message.success(`✨ Xuất sắc! Đã viết đúng chữ "${character}"!`);
-          
+
           // Cấu hình headers an toàn TypeScript
           const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
           const authHeaders: Record<string, string> = {

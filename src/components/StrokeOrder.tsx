@@ -35,7 +35,7 @@ export default function StrokeOrder({ character }: StrokeOrderProps) {
           showGrid: true,
           gridColor: "#ffccc7",
         },
-      } as any); // Thêm as any để tránh lỗi type check trên Vercel
+      } as any);
 
       writerRef.current = writer;
       writer.animateCharacter();

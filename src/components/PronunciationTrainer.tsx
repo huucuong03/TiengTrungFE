@@ -29,7 +29,6 @@ export default function PronunciationTrainer({
   const [status, setStatus] = useState<"idle" | "correct" | "incorrect">("idle");
   const recognitionRef = useRef<any>(null);
 
-  // Phát âm mẫu
   const playSampleAudio = () => {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
@@ -66,7 +65,6 @@ export default function PronunciationTrainer({
       const recognized = matched[0] || "";
       setSpokenText(recognized);
 
-      // Kiểm tra xem chuỗi thu âm có khớp với chữ Hán mục tiêu không
       const isCorrect = matched.some((text: string) => text.includes(hanzi) || hanzi.includes(text));
 
       if (isCorrect) {
@@ -111,11 +109,7 @@ export default function PronunciationTrainer({
         </div>
 
         <Space wrap size="middle">
-          <Button
-            shape="round"
-            icon={<SoundOutlined />}
-            onClick={playSampleAudio}
-          >
+          <Button shape="round" icon={<SoundOutlined />} onClick={playSampleAudio}>
             Nghe phát âm mẫu
           </Button>
 
@@ -131,7 +125,6 @@ export default function PronunciationTrainer({
           </Button>
         </Space>
 
-        {/* Kết quả đánh giá */}
         {spokenText && (
           <div style={{ marginTop: 8, padding: "8px 12px", background: "#fafafa", borderRadius: 8 }}>
             <Text type="secondary" style={{ fontSize: 13 }}>
