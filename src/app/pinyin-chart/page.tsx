@@ -69,17 +69,13 @@ export default function PinyinChartPage() {
   const playSound = (text: string, tone: number = selectedTone) => {
     const clean = text.trim().toLowerCase();
     
-    // Nếu tone = 0 (chỉ bấm vào thanh mẫu b, p, m, f...) thì đọc chữ Hán đầu tiên của nó
     if (tone === 0) {
       const pronunciation = getPronunciationText(clean, 1);
       playAudio(pronunciation.text);
       return;
     }
 
-    // QUAN TRỌNG: Lấy chính xác dạng nguyên khối (Ưu tiên Chữ Hán, nếu không có lấy Pinyin gộp dấu như "bá")
     const pronunciation = getPronunciationText(clean, tone);
-    
-    // Luôn truyền text nguyên khối (ví dụ: "拔" hoặc "bá") vào hàm playAudio để nó đọc liền mạch 1 lần duy nhất
     playAudio(pronunciation.text);
   };
 
@@ -105,7 +101,7 @@ export default function PinyinChartPage() {
     }
   };
 
-  const allValidSyllables = data.rows.flatMap((row) =>
+  const allValidSyllables = data.rows.flatMap((row: any) =>
     Object.keys(row)
       .filter((k) => k !== "group" && k !== "initial")
       .map((k) => row[k])
@@ -124,13 +120,13 @@ export default function PinyinChartPage() {
 
       if (res.ok && resData.success && resData.questions?.length > 0) {
         questions = resData.questions.map((q: any) => ({
-          id: q.id,
-          target: q.target_pinyin,
-          base: q.base_pinyin,
-          tone: q.tone,
-          options: q.options,
-          hanzi: q.hanzi || getHanziForTone(q.base_pinyin, q.tone),
-          meaning: q.meaning,
+          id: Number(q.id),
+          target: String(q.target_pinyin || ""),
+          base: String(q.base_pinyin || ""),
+          tone: Number(q.tone || 1),
+          options: (q.options || []).map(String),
+          hanzi: q.hanzi ? String(q.hanzi) : getHanziForTone(String(q.base_pinyin), Number(q.tone)),
+          meaning: q.meaning ? String(q.meaning) : undefined,
         }));
       } else {
         questions = buildRandomQuestionsFallback(mode);
@@ -156,11 +152,11 @@ export default function PinyinChartPage() {
   };
 
   const buildRandomQuestionsFallback = (mode: ListeningMode): QuestionItem[] => {
-    const pool = Array.from(new Set(allValidSyllables));
+    const pool: string[] = Array.from(new Set(allValidSyllables));
     const generated: QuestionItem[] = [];
 
     for (let i = 0; i < TOTAL_QUESTIONS; i++) {
-      const baseTarget = pool[i % pool.length];
+      const baseTarget: string = pool[i % pool.length]; // Định nghĩa tường minh kiểu string
       const randomTone = Math.floor(Math.random() * 4) + 1;
       const targetWithTone = applyToneToSyllable(baseTarget, randomTone);
       let options: string[] = [];

@@ -264,7 +264,7 @@ export default function PinyinQuiz({
         )}
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, margin: "16px 0", maxWidth: 480, marginLeft: "auto", marginRight: "auto" }}>
-          {currentQ.options.map((opt) => {
+          {currentQ.options.map((opt: string) => {
             let isCorrectOpt = false;
             let isWrongSelected = false;
 
