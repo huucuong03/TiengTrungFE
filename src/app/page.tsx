@@ -1,69 +1,307 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Card,
+  Col,
+  Row,
+  Typography,
+  Button,
+  Statistic,
+  Space,
+  Spin,
+  Progress,
+} from "antd";
+import {
+  BookOutlined,
+  TranslationOutlined,
+  ReadOutlined,
+  TrophyOutlined,
+  CustomerServiceOutlined,
+  AppstoreOutlined,
+  FireOutlined,
+  CheckCircleOutlined,
+  ArrowRightOutlined,
+} from "@ant-design/icons";
+
+const { Title, Paragraph, Text } = Typography;
+
+interface UserStats {
+  totalWords: number;
+  masteredWords: number;
+  totalScore: number;
+  quizzesTaken: number;
+}
+
+export default function HomePage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [username, setUsername] = useState<string>("");
+  const [stats, setStats] = useState<UserStats>({
+    totalWords: 0,
+    masteredWords: 0,
+    totalScore: 0,
+    quizzesTaken: 0,
+  });
+
+useEffect(() => {
+    const storedUser = localStorage.getItem("username");
+    if (storedUser) setUsername(storedUser);
+
+    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
+    // Trỏ thẳng tới URL Backend FastAPI thay vì dùng đường dẫn tương đối
+    Promise.all([
+      fetch("https://tiengtrung-7hto.onrender.com/api/notebook/words", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => (res.ok ? res.json() : []))
+        .catch(() => []),
+      fetch("https://tiengtrung-7hto.onrender.com/api/notebook/quiz/daily-stats", { // Hoặc endpoint quiz-logs thực tế của bạn
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .catch(() => null),
+    ])
+      .then(([wordsData, statsData]) => {
+        // Xử lý dữ liệu linh hoạt tùy theo định dạng trả về từ backend của bạn
+        const words = Array.isArray(wordsData) ? wordsData : wordsData?.items || [];
+        
+        const totalWords = words.length;
+        const masteredWords = words.filter(
+          (w: any) => (w.proficiency || 0) >= 80
+        ).length;
+
+        // Lấy điểm tổng và số lượt từ API thống kê nếu có, hoặc mặc định 0
+        const totalScore = statsData?.all_time?.avg_score ? statsData.all_time.avg_score * (statsData.all_time.total_completed || 0) : 0;
+        const quizzesTaken = statsData?.all_time?.total_completed || 0;
+
+        setStats({
+          totalWords,
+          masteredWords,
+          totalScore: Math.round(totalScore),
+          quizzesTaken,
+        });
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const features = [
+    {
+      title: "Bảng Ngữ Âm Pinyin",
+      description: "Ghép âm, luyện phát âm chuẩn 4 thanh điệu cùng âm vị bản xứ.",
+      icon: <CustomerServiceOutlined style={{ color: "#1677ff" }} />,
+      path: "/pinyin-chart",
+      tag: "Căn bản",
+    },
+    {
+      title: "Tra Cứu & Chiết Tự",
+      description: "Tra nghĩa 2 chiều, phân tích từng bộ phận và mẹo nhớ chữ Hán qua AI.",
+      icon: <BookOutlined style={{ color: "#52c41a" }} />,
+      path: "/words",
+      tag: "Tra cứu",
+    },
+    {
+      title: "Sổ Từ & Luyện Quiz",
+      description: "Quản lý từ vựng cá nhân và làm bài kiểm tra ôn tập củng cố trí nhớ.",
+      icon: <ReadOutlined style={{ color: "#fa8c16" }} />,
+      path: "/practice",
+      tag: "Cá nhân",
+    },
+    {
+      title: "Dịch Đoạn Văn",
+      description: "Dịch văn bản tiếng Trung với pinyin và giải nghĩa ngữ pháp từng câu.",
+      icon: <TranslationOutlined style={{ color: "#722ed1" }} />,
+      path: "/translate-text",
+      tag: "Dịch thuật",
+    },
+    {
+      title: "214 Bộ Thủ Hán Tự",
+      description: "Học nguồn gốc, ý nghĩa và cách kết hợp của các bộ thủ thông dụng.",
+      icon: <AppstoreOutlined style={{ color: "#13c2c2" }} />,
+      path: "/radicals",
+      tag: "Kiến thức",
+    },
+  ];
+
+  const masteryPercentage =
+    stats.totalWords > 0
+      ? Math.round((stats.masteredWords / stats.totalWords) * 100)
+      : 0;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+      {/* Tiêu đề chào mừng */}
+      <div style={{ marginBottom: 28 }}>
+        <Title level={2} style={{ margin: 0, fontWeight: 800 }}>
+          🇨🇳 Xin chào{username ? `, ${username}` : ""}!
+        </Title>
+        <Paragraph type="secondary" style={{ fontSize: 15, marginTop: 4 }}>
+          Chào mừng bạn quay lại hệ thống học tiếng Trung tương tác.
+        </Paragraph>
+      </div>
+
+      {/* Bảng thống kê học tập */}
+      <Card
+        style={{
+          borderRadius: 16,
+          marginBottom: 32,
+          boxShadow: "0 4px 16px rgba(0,0,0,0.04)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
+          <FireOutlined style={{ fontSize: 20, color: "#fa541c" }} />
+          <Text strong style={{ fontSize: 16 }}>Tiến độ học tập của bạn</Text>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "20px 0" }}>
+            <Spin />
+          </div>
+        ) : (
+          <Row gutter={[24, 24]}>
+            <Col xs={12} sm={6}>
+              <Card bordered={false} style={{ background: "#f0f5ff", borderRadius: 12 }}>
+                <Statistic
+                  title={<Text style={{ color: "#595959" }}>Từ đã lưu</Text>}
+                  value={stats.totalWords}
+                  suffix="từ"
+                  prefix={<BookOutlined style={{ color: "#1677ff" }} />}
+                  valueStyle={{ fontWeight: 800, color: "#1677ff" }}
+                />
+              </Card>
+            </Col>
+
+            <Col xs={12} sm={6}>
+              <Card bordered={false} style={{ background: "#f6ffed", borderRadius: 12 }}>
+                <Statistic
+                  title={<Text style={{ color: "#595959" }}>Đã thành thạo</Text>}
+                  value={stats.masteredWords}
+                  suffix="từ"
+                  prefix={<CheckCircleOutlined style={{ color: "#52c41a" }} />}
+                  valueStyle={{ fontWeight: 800, color: "#52c41a" }}
+                />
+              </Card>
+            </Col>
+
+            <Col xs={12} sm={6}>
+              <Card bordered={false} style={{ background: "#fffbe6", borderRadius: 12 }}>
+                <Statistic
+                  title={<Text style={{ color: "#595959" }}>Tổng điểm bài thi</Text>}
+                  value={stats.totalScore}
+                  prefix={<TrophyOutlined style={{ color: "#faad14" }} />}
+                  valueStyle={{ fontWeight: 800, color: "#d48806" }}
+                />
+              </Card>
+            </Col>
+
+            <Col xs={12} sm={6}>
+              <Card bordered={false} style={{ background: "#f9f0ff", borderRadius: 12 }}>
+                <Statistic
+                  title={<Text style={{ color: "#595959" }}>Lượt làm Quiz</Text>}
+                  value={stats.quizzesTaken}
+                  suffix="lượt"
+                  prefix={<ReadOutlined style={{ color: "#722ed1" }} />}
+                  valueStyle={{ fontWeight: 800, color: "#722ed1" }}
+                />
+              </Card>
+            </Col>
+
+            <Col xs={24}>
+              <div
+                style={{
+                  background: "#fafafa",
+                  padding: "16px 20px",
+                  borderRadius: 12,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: 12,
+                }}
+              >
+                <div>
+                  <Text strong>Tỷ lệ ghi nhớ từ vựng:</Text>
+                  <Text type="secondary" style={{ marginLeft: 8 }}>
+                    {stats.masteredWords}/{stats.totalWords} từ đạt độ thành thạo cao
+                  </Text>
+                </div>
+                <div style={{ width: 240 }}>
+                  <Progress percent={masteryPercentage} status="active" />
+                </div>
+              </div>
+            </Col>
+          </Row>
+        )}
+      </Card>
+
+      {/* Danh sách các tính năng */}
+      <Title level={4} style={{ marginBottom: 16 }}>
+        Bắt đầu học tập
+      </Title>
+
+      <Row gutter={[20, 20]}>
+        {features.map((item) => (
+          <Col xs={24} sm={12} lg={8} key={item.path}>
+            <Card
+              hoverable
+              style={{
+                height: "100%",
+                borderRadius: 14,
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+              }}
+              onClick={() => router.push(item.path)}
+            >
+              <div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    marginBottom: 16,
+                  }}
+                >
+                  <div style={{ fontSize: 32 }}>{item.icon}</div>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      padding: "2px 8px",
+                      borderRadius: 6,
+                      background: "#f0f0f0",
+                      color: "#595959",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {item.tag}
+                  </span>
+                </div>
+
+                <Title level={4} style={{ marginBottom: 8, fontSize: 18 }}>
+                  {item.title}
+                </Title>
+
+                <Paragraph type="secondary" style={{ minHeight: 44, fontSize: 14 }}>
+                  {item.description}
+                </Paragraph>
+              </div>
+
+              <Button
+                type="link"
+                style={{ padding: 0, display: "flex", alignItems: "center", gap: 6 }}
+              >
+                Vào học ngay <ArrowRightOutlined />
+              </Button>
+            </Card>
+          </Col>
+        ))}
+      </Row>
     </div>
   );
 }
