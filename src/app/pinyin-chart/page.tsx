@@ -80,21 +80,52 @@ const TONE_MARKS: Record<string, string[]> = {
 };
 
 const TONE_HANZI_MAPPING: Record<string, string[]> = {
-  a: ["啊", "啊", "啊", "啊"],
-  o: ["喔", "哦", "ǒ", "ò"],
-  e: ["婀", "鹅", "恶", "饿"],
-  i: ["衣", "移", "椅", "意"],
-  u: ["屋", "无", "五", "物"],
-  ü: ["迂", "鱼", "雨", "玉"],
-  v: ["迂", "鱼", "雨", "玉"],
-  ai: ["哀", "癌", "矮", "爱"],
-  ei: ["诶", "éi", "ěi", "èi"],
-  ao: ["熬", "敖", "袄", "傲"],
-  ou: ["欧", "ou", "偶", "藕"],
-  an: ["安", "án", "ǎn", "暗"],
-  en: ["恩", "én", "ěn", "èn"],
-  ang: ["昂", "áng", "ǎng", "àng"],
-  eng: ["鞥", "éng", "ěng", "èng"],
+  a: ["ā", "á", "ǎ", "à"], // Dùng trực tiếp ký hiệu chuẩn quốc tế nếu cần thiết cho độ chính xác tuyệt đối
+  o: ["ō", "ó", "ǒ", "ò"],
+  e: ["ē", "é", "ě", "è"],
+  i: ["ī", "í", "ǐ", "ì"],
+  u: ["ū", "ú", "ǔ", "ù"],
+  ü: ["ǖ", "ǘ", "ǚ", "ǜ"],
+  v: ["ǖ", "ǘ", "ǚ", "ǜ"],
+
+  ai: ["āi", "ái", "ǎi", "ài"],
+  ei: ["ēi", "éi", "ěi", "èi"],
+  ao: ["āo", "áo", "ǎo", "ào"],
+  ou: ["ōu", "óu", "ǒu", "òu"],
+
+  an: ["ān", "án", "ǎn", "àn"],
+  en: ["ēn", "én", "ěn", "èn"],
+  ang: ["āng", "áng", "ǎng", "àng"],
+  eng: ["ēng", "éng", "ěng", "èng"],
+
+  ian: ["yān", "yán", "yǎn", "yàn"],
+  uan: ["wān", "wán", "wǎn", "wàn"],
+  üan: ["yuān", "yuán", "yuǎn", "yuàn"],
+  van: ["yuān", "yuán", "yuǎn", "yuàn"],
+
+  iang: ["yāng", "yáng", "yǎng", "yàng"],
+  uang: ["wāng", "wáng", "wǎng", "wàng"],
+  iong: ["yōng", "yóng", "yǒng", "yòng"],
+
+  ia: ["yā", "yá", "yǎ", "yà"],
+  ie: ["yē", "yé", "yě", "yè"],
+  ua: ["wā", "wá", "wǎ", "wà"],
+  uo: ["wō", "wó", "wǒ", "wò"],
+  üe: ["yuē", "yué", "yuě", "yuè"],
+  ve: ["yuē", "yué", "yuě", "yuè"],
+
+  iao: ["yāo", "yáo", "yǎo", "yào"],
+  iu: ["yōu", "yóu", "yǒu", "yòu"],
+  uai: ["wāi", "wái", "wǎi", "wài"],
+  ui: ["wēi", "wéi", "wěi", "wèi"],
+
+  in: ["īn", "ín", "ǐn", "ìn"],
+  un: ["wēn", "wén", "wěn", "wèn"],
+  ün: ["yūn", "yún", "yǔn", "yùn"],
+  vn: ["yūn", "yún", "yǔn", "yùn"],
+
+  ing: ["īng", "íng", "ǐng", "ìng"],
+  ong: ["ōng", "óng", "ǒng", "òng"],
 };
 
 function applyToneToSyllable(syllable: string, tone: number): string {
