@@ -169,42 +169,11 @@ export default function PinyinChartPage() {
     }
 
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    utterance.lang = "zh-CN"; // Đặt ngôn ngữ cố định là Tiếng Trung
-    utterance.rate = 0.8;     // Đọc chậm rõ âm điệu
+    utterance.lang = "zh-CN"; // Chỉ định chuẩn ngôn ngữ tiếng Trung Phổ Thông
+    utterance.rate = 0.85;   // Tốc độ đọc chậm rõ từng âm điệu
 
-    // Hàm thực hiện chọn đúng giọng tiếng Trung để tránh bị đọc thành tiếng Anh
-    const setVoiceAndSpeak = () => {
-      const voices = synth.getVoices();
-      // Lọc ưu tiên các giọng chuẩn Trung Quốc (zh-CN, cmn, han, hoặc có chữ Chinese)
-      const zhVoice = voices.find(
-        (v) =>
-          v.lang === "zh-CN" ||
-          v.lang === "zh_CN" ||
-          v.lang.toLowerCase().includes("zh") ||
-          v.name.toLowerCase().includes("chinese") ||
-          v.name.toLowerCase().includes("mandarin")
-      );
-
-      if (zhVoice) {
-        utterance.voice = zhVoice;
-      }
-      synth.speak(utterance);
-    };
-
-    // Kiểm tra danh sách giọng của trình duyệt
-    const voices = synth.getVoices();
-    if (voices.length > 0) {
-      setVoiceAndSpeak();
-    } else {
-      // Nếu trình duyệt chưa load kịp danh sách giọng, đợi sự kiện onvoiceschanged
-      synth.onvoiceschanged = () => {
-        setVoiceAndSpeak();
-      };
-      // Dự phòng nếu sự kiện không kích hoạt
-      setTimeout(() => {
-        if (!synth.speaking) synth.speak(utterance);
-      }, 150);
-    }
+    // Gọi lệnh phát trực tiếp ngay lập tức, không qua hàm chờ rườm rà để tránh bị di động chặn
+    synth.speak(utterance);
   };
   // Phát âm 2 lần cách nhau đúng 2 giây (2000ms)
   const playAudioTwiceWith2sInterval = (base: string, tone: number) => {
