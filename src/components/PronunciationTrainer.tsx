@@ -93,6 +93,7 @@ export default function PronunciationTrainer({
         background: status === "correct" ? "#f6ffed" : status === "incorrect" ? "#fff2e8" : "#ffffff",
       }}
     >
+      {/* Chỉ dùng duy nhất direction="vertical", tuyệt đối không dùng orientation */}
       <Space direction="vertical" size="middle" style={{ width: "100%" }}>
         <div>
           <Text style={{ fontSize: 48, fontWeight: "bold", color: "#1677ff", lineHeight: 1 }}>
