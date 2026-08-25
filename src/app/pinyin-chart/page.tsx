@@ -165,17 +165,12 @@ export default function PinyinChartPage() {
       textToSpeak = applyToneToSyllable(clean, tone);
     }
 
-    // Sử dụng link âm thanh trực tiếp của Google Translate TTS (hoạt động 100% trên điện thoại và PC)
-    const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(
-      textToSpeak
-    )}&tl=zh-CN&client=tw-ob`;
+    // Sửa lại đúng cú pháp template string, thay vì bị dính chữ ${encoded} thô
+    const audioUrl = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(textToSpeak)}&type=1`;
 
     const audio = new Audio(audioUrl);
-    audio.playbackRate = 0.9; // Tốc độ đọc chậm rõ từng âm điệu
-    
     audio.play().catch((err) => {
-      console.error("Lỗi phát audio trên mobile:", err);
-      message.warning("Hãy chạm vào màn hình thêm 1 lần để bật âm thanh.");
+      console.error("Lỗi phát âm thanh:", err);
     });
   };
 
