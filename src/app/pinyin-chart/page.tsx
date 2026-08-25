@@ -165,7 +165,7 @@ export default function PinyinChartPage() {
       textToSpeak = applyToneToSyllable(clean, tone);
     }
 
-    // Sửa lại đúng cú pháp template string, thay vì bị dính chữ ${encoded} thô
+    // BẮT BUỘC DÙNG DẤU HUYỀN (`) Ở ĐẦU VÀ CUỐI ĐỂ BIẾN ${...} HOẠT ĐỘNG ĐÚNG
     const audioUrl = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(textToSpeak)}&type=1`;
 
     const audio = new Audio(audioUrl);
@@ -173,7 +173,6 @@ export default function PinyinChartPage() {
       console.error("Lỗi phát âm thanh:", err);
     });
   };
-
   // Phát âm 2 lần cách nhau đúng 2 giây (2000ms)
   const playAudioTwiceWith2sInterval = (base: string, tone: number) => {
     playSound(base, tone);
