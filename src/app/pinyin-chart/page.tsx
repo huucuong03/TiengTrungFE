@@ -152,7 +152,10 @@ export default function PinyinChartPage() {
   }, []);
 
   const playSound = (text: string, tone: number = selectedTone) => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+
+    const synth = window.speechSynthesis;
+    synth.cancel(); // Dừng các âm đang phát trước đó
 
     const clean = text.trim().toLowerCase();
     let textToSpeak = clean;
@@ -165,13 +168,20 @@ export default function PinyinChartPage() {
       textToSpeak = applyToneToSyllable(clean, tone);
     }
 
-    // BẮT BUỘC DÙNG DẤU HUYỀN (`) Ở ĐẦU VÀ CUỐI ĐỂ BIẾN ${...} HOẠT ĐỘNG ĐÚNG
-    const audioUrl = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(textToSpeak)}&type=1`;
+    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+    utterance.lang = "zh-CN"; // Đặt chuẩn tiếng Trung Phổ Thông (Mandarin)
+    utterance.rate = 0.8;   // Chỉnh tốc độ đọc chậm rãi (0.8) giúp nghe cực kỳ rõ thanh điệu 1, 2, 3, 4
 
-    const audio = new Audio(audioUrl);
-    audio.play().catch((err) => {
-      console.error("Lỗi phát âm thanh:", err);
-    });
+    // Ép buộc trình duyệt tìm giọng tiếng Trung chuẩn nếu có sẵn trên thiết bị
+    const voices = synth.getVoices();
+    const zhVoice = voices.find(
+      (v) => v.lang === "zh-CN" || v.lang === "zh_CN" || v.lang.toLowerCase().includes("zh")
+    );
+    if (zhVoice) {
+      utterance.voice = zhVoice;
+    }
+
+    synth.speak(utterance);
   };
   // Phát âm 2 lần cách nhau đúng 2 giây (2000ms)
   const playAudioTwiceWith2sInterval = (base: string, tone: number) => {
