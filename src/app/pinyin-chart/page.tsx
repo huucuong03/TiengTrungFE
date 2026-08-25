@@ -152,29 +152,52 @@ export default function PinyinChartPage() {
   }, []);
 
   const playSound = (text: string, tone: number = selectedTone) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  if (typeof window === "undefined" || !window.speechSynthesis) return;
 
-    const synth = window.speechSynthesis;
-    synth.cancel(); // Dừng các âm đang phát trước đó
+  const synth = window.speechSynthesis;
+  synth.cancel();
 
-    const clean = text.trim().toLowerCase();
-    let textToSpeak = clean;
+  const clean = text.trim().toLowerCase();
+  let textToSpeak = clean;
 
-    if (tone > 0 && TONE_HANZI_MAPPING[clean] && TONE_HANZI_MAPPING[clean][tone - 1]) {
-      textToSpeak = TONE_HANZI_MAPPING[clean][tone - 1];
-    } else if (tone === 0 && PINYIN_SOUND_MAPPING[clean]) {
-      textToSpeak = PINYIN_SOUND_MAPPING[clean];
-    } else if (tone > 0) {
-      textToSpeak = applyToneToSyllable(clean, tone);
-    }
+  if (
+    tone > 0 &&
+    TONE_HANZI_MAPPING[clean] &&
+    TONE_HANZI_MAPPING[clean][tone - 1]
+  ) {
+    textToSpeak = TONE_HANZI_MAPPING[clean][tone - 1];
+  } else if (tone === 0 && PINYIN_SOUND_MAPPING[clean]) {
+    textToSpeak = PINYIN_SOUND_MAPPING[clean];
+  } else if (tone > 0) {
+    textToSpeak = applyToneToSyllable(clean, tone);
+  }
 
-    const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    utterance.lang = "zh-CN"; // Chỉ định chuẩn ngôn ngữ tiếng Trung Phổ Thông
-    utterance.rate = 0.85;   // Tốc độ đọc chậm rõ từng âm điệu
+  const utterance = new SpeechSynthesisUtterance(textToSpeak);
 
-    // Gọi lệnh phát trực tiếp ngay lập tức, không qua hàm chờ rườm rà để tránh bị di động chặn
-    synth.speak(utterance);
-  };
+  // Tìm voice tiếng Trung
+  const voices = synth.getVoices();
+
+  const zhVoice =
+    voices.find(v => v.lang === "zh-CN") ||
+    voices.find(v => v.lang.startsWith("zh")) ||
+    voices.find(v =>
+      /xiaoxiao|yaoyao|huihui|chinese|mandarin/i.test(v.name)
+    );
+
+  if (zhVoice) {
+    utterance.voice = zhVoice;
+    utterance.lang = zhVoice.lang;
+  } else {
+    utterance.lang = "zh-CN";
+  }
+
+  utterance.rate = 0.85;
+  utterance.pitch = 1;
+  utterance.volume = 1;
+
+  synth.speak(utterance);
+};
+
   // Phát âm 2 lần cách nhau đúng 2 giây (2000ms)
   const playAudioTwiceWith2sInterval = (base: string, tone: number) => {
     playSound(base, tone);
