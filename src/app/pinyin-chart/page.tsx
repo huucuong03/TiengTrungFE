@@ -152,13 +152,7 @@ export default function PinyinChartPage() {
   }, []);
 
   const playSound = (text: string, tone: number = selectedTone) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      message.warning("Trình duyệt không hỗ trợ phát âm thanh");
-      return;
-    }
-
-    const synth = window.speechSynthesis;
-    synth.cancel(); // Dừng các âm đang phát trước đó
+    if (typeof window === "undefined") return;
 
     const clean = text.trim().toLowerCase();
     let textToSpeak = clean;
@@ -171,39 +165,18 @@ export default function PinyinChartPage() {
       textToSpeak = applyToneToSyllable(clean, tone);
     }
 
-    const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    utterance.lang = "zh-CN"; // Bắt buộc đặt ngôn ngữ chuẩn
-    utterance.rate = 0.85;   // Tốc độ đọc chậm rãi
+    // Sử dụng link âm thanh trực tiếp của Google Translate TTS (hoạt động 100% trên điện thoại và PC)
+    const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(
+      textToSpeak
+    )}&tl=zh-CN&client=tw-ob`;
 
-    // Hàm thực hiện phát âm
-    const speakNow = () => {
-      const voices = synth.getVoices();
-      // Ưu tiên tìm giọng tiếng Trung, nếu không có sẽ để trống để trình duyệt tự chọn
-      const zhVoice = voices.find((v) => v.lang === "zh-CN" || v.lang.includes("zh") || v.lang.includes("cmn"));
-      if (zhVoice) {
-        utterance.voice = zhVoice;
-      }
-      synth.speak(utterance);
-    };
-
-    // Trên điện thoại, danh sách voices có thể mất vài mili-giây để load
-    const voices = synth.getVoices();
-    if (voices.length > 0) {
-      speakNow();
-    } else {
-      // Đợi sự kiện load giọng hoàn tất rồi đọc
-      synth.onvoiceschanged = () => {
-        speakNow();
-      };
-      // Fallback gọi luôn nếu sự kiện không kích hoạt
-      setTimeout(() => {
-        if (!synth.speaking) synth.speak(utterance);
-      }, 100);
-    }
-
-    utterance.onerror = (e) => {
-      console.error("Speech synthesis error:", e);
-    };
+    const audio = new Audio(audioUrl);
+    audio.playbackRate = 0.9; // Tốc độ đọc chậm rõ từng âm điệu
+    
+    audio.play().catch((err) => {
+      console.error("Lỗi phát audio trên mobile:", err);
+      message.warning("Hãy chạm vào màn hình thêm 1 lần để bật âm thanh.");
+    });
   };
 
   // Phát âm 2 lần cách nhau đúng 2 giây (2000ms)
