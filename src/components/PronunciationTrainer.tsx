@@ -96,7 +96,8 @@ export default function PronunciationTrainer({
         background: status === "correct" ? "#f6ffed" : status === "incorrect" ? "#fff2e8" : "#ffffff",
       }}
     >
-      <Space orientation="vertical" size="middle" orientation={0} style={{ width: "100%" }}>
+      {/* Sửa lại direction="vertical" chuẩn Ant Design */}
+      <Space direction="vertical" size="middle" style={{ width: "100%" }}>
         <div>
           <Text style={{ fontSize: 48, fontWeight: "bold", color: "#1677ff", lineHeight: 1 }}>
             {hanzi}
