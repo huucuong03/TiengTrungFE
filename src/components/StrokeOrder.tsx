@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import HanziWriter from "hanzi-writer";
-import { Button, Typography, Tooltip, Select } from "antd";
+import { Button, Typography, Select } from "antd";
 import { PlayCircleOutlined, ClearOutlined } from "@ant-design/icons";
 
 const { Text, Title } = Typography;
@@ -13,7 +13,7 @@ interface StrokeOrderProps {
 
 export default function StrokeOrder({ character }: StrokeOrderProps) {
   const guideRef = useRef<HTMLDivElement>(null);
-  const writerRef = useRef<HanziWriter | null>(null);
+  const writerRef = useRef<any>(null);
   const [cellCount, setCellCount] = useState<number>(4);
 
   useEffect(() => {
@@ -21,23 +21,27 @@ export default function StrokeOrder({ character }: StrokeOrderProps) {
 
     guideRef.current.innerHTML = "";
 
-    const writer = HanziWriter.create(guideRef.current, character, {
-      width: 120,
-      height: 120,
-      padding: 8,
-      showOutline: true,
-      strokeAnimationSpeed: 1.2,
-      delayBetweenStrokes: 200,
-      strokeColor: "#1677ff",
-      outlineColor: "#e2e8f0",
-      grid: {
-        showGrid: true,
-        gridColor: "#ffccc7",
-      },
-    });
+    try {
+      const writer = HanziWriter.create(guideRef.current, character, {
+        width: 120,
+        height: 120,
+        padding: 8,
+        showOutline: true,
+        strokeAnimationSpeed: 1.2,
+        delayBetweenStrokes: 200,
+        strokeColor: "#1677ff",
+        outlineColor: "#e2e8f0",
+        grid: {
+          showGrid: true,
+          gridColor: "#ffccc7",
+        },
+      } as any); // Thêm as any để tránh lỗi type check trên Vercel
 
-    writerRef.current = writer;
-    writer.animateCharacter();
+      writerRef.current = writer;
+      writer.animateCharacter();
+    } catch (e) {
+      console.error("HanziWriter error:", e);
+    }
 
     return () => {
       writerRef.current = null;
@@ -152,7 +156,7 @@ export default function StrokeOrder({ character }: StrokeOrderProps) {
         }
         .practice-header {
           display: flex;
-          justifyContent: space-between;
+          justify-content: space-between;
           align-items: center;
           flex-wrap: wrap;
           gap: 4px;
@@ -170,7 +174,7 @@ export default function StrokeOrder({ character }: StrokeOrderProps) {
           .guide-panel {
             flex-direction: row;
             flex-wrap: wrap;
-            justifyContent: center;
+            justify-content: center;
             gap: 8px;
           }
           .guide-canvas {
@@ -274,15 +278,13 @@ function FreeDrawCell({ character, size, index }: FreeDrawCellProps) {
     const timeDiff = Math.max(now - prevPoint.time, 1);
     const velocity = dist / timeDiff;
 
-    // Căn chỉnh ngòi bút lông mảnh: Tối thiểu 0.8px (vuốt nhanh), tối đa 3.6px (ấn đầm)
+    // Căn chỉnh ngòi bút lông mảnh: Tối thiểu 0.8px, tối đa 3.6px
     let targetWidth = Math.max(0.8, Math.min(3.6, 3.4 - velocity * 1.2));
 
-    // Hiệu ứng góc ngòi bút lông vát tự nhiên
     const angle = Math.atan2(y - prevPoint.y, x - prevPoint.x);
     const angleFactor = Math.abs(Math.sin(angle - Math.PI / 4));
     targetWidth = targetWidth * (0.85 + angleFactor * 0.3);
 
-    // Làm mượt độ dày giữa các điểm
     const strokeWidth = prevPoint.width * 0.6 + targetWidth * 0.4;
 
     const currentPoint: Point = { x, y, time: now, width: strokeWidth };
@@ -317,7 +319,6 @@ function FreeDrawCell({ character, size, index }: FreeDrawCellProps) {
     ctx.closePath();
     ctx.fill();
 
-    // Khớp tròn ngọn bút
     ctx.beginPath();
     ctx.arc(p2.x, p2.y, r2, 0, Math.PI * 2);
     ctx.fill();
@@ -328,7 +329,6 @@ function FreeDrawCell({ character, size, index }: FreeDrawCellProps) {
     if (!isDrawingRef.current) return;
     isDrawingRef.current = false;
 
-    // Thu bút: vuốt nhọn tự nhiên về 0.3px
     const points = pointsRef.current;
     if (points.length >= 3) {
       const canvas = canvasRef.current;
@@ -402,7 +402,7 @@ function FreeDrawCell({ character, size, index }: FreeDrawCellProps) {
           />
         </svg>
 
-        {/* Chữ mờ Khải thư (Kaiti) */}
+        {/* Chữ mờ Khải thư */}
         {guideOpacity > 0 && (
           <div
             className="guide-text"
@@ -431,17 +431,15 @@ function FreeDrawCell({ character, size, index }: FreeDrawCellProps) {
         />
       </div>
 
-      <Tooltip title={`Xóa ô ${index + 1}`}>
-        <Button
-          type="text"
-          size="small"
-          icon={<ClearOutlined />}
-          onClick={clearCell}
-          className="clear-btn"
-        >
-          Xóa {index + 1}
-        </Button>
-      </Tooltip>
+      <Button
+        type="text"
+        size="small"
+        icon={<ClearOutlined />}
+        onClick={clearCell}
+        className="clear-btn"
+      >
+        Xóa {index + 1}
+      </Button>
 
       <style jsx>{`
         .cell-wrapper {
@@ -474,7 +472,7 @@ function FreeDrawCell({ character, size, index }: FreeDrawCellProps) {
           height: 100%;
           display: flex;
           align-items: center;
-          justifyContent: center;
+          justify-content: center;
           font-family: "KaiTi", "STKaiti", "BiauKai", "楷体", "DFKai-SB", serif;
           pointer-events: none;
           line-height: 1;

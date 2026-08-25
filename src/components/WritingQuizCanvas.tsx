@@ -9,7 +9,7 @@ interface Props {
   character: string;
   wordId: number;
   onSuccess: (usedHint: boolean) => void;
-  onPenalty?: (penaltyPoints: number) => void; // Thêm callback trừ điểm
+  onPenalty?: (penaltyPoints: number) => void;
 }
 
 export default function WritingQuizCanvas({ character, wordId, onSuccess, onPenalty }: Props) {
@@ -26,56 +26,64 @@ export default function WritingQuizCanvas({ character, wordId, onSuccess, onPena
     setMistakes(0);
     setUsedHint(false);
 
-    // Khởi tạo HanziWriter ở chế độ ẩn nét mờ hoàn toàn
-    const writer = HanziWriter.create(containerRef.current, character, {
-      width: 260,
-      height: 260,
-      padding: 20,
-      showOutline: false,
-      showCharacter: false,
-      strokeColor: "#1677ff",
-      strokeAnimationSpeed: 1.2,
-      delayBetweenStrokes: 150,
-      grid: {
-        gridColor: "#ffd591",
-      },
-    });
+    try {
+      // Khởi tạo HanziWriter ở chế độ ẩn nét mờ hoàn toàn (Thêm as any để tránh lỗi type)
+      const writer = HanziWriter.create(containerRef.current, character, {
+        width: 260,
+        height: 260,
+        padding: 20,
+        showOutline: false,
+        showCharacter: false,
+        strokeColor: "#1677ff",
+        strokeAnimationSpeed: 1.2,
+        delayBetweenStrokes: 150,
+        grid: {
+          gridColor: "#ffd591",
+        },
+      } as any);
 
-    writerRef.current = writer;
+      writerRef.current = writer;
 
-    // Bắt đầu Quiz viết ngay lập tức
-    writer.quiz({
-      onMistake: () => {
-        setMistakes((prev) => prev + 1);
-        
-        // Trừ 5 điểm mỗi lần viết sai nét hoặc sai thứ tự
-        if (onPenalty) {
-          onPenalty(5);
-        }
+      // Bắt đầu Quiz viết ngay lập tức
+      writer.quiz({
+        onMistake: () => {
+          setMistakes((prev) => prev + 1);
+          
+          if (onPenalty) {
+            onPenalty(5);
+          }
 
-        message.warning("❌ Sai nét hoặc sai thứ tự! (-5 điểm)");
-      },
-      onComplete: async () => {
-        setIsDone(true);
-        message.success(`✨ Xuất sắc! Đã viết đúng chữ "${character}"!`);
-        
-        // Gọi API cập nhật tiến độ
-        try {
+          message.warning("❌ Sai nét hoặc sai thứ tự! (-5 điểm)");
+        },
+        onComplete: async () => {
+          setIsDone(true);
+          message.success(`✨ Xuất sắc! Đã viết đúng chữ "${character}"!`);
+          
+          // Cấu hình headers an toàn TypeScript
           const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
-          await fetch(`https://tiengtrung-7hto.onrender.com/api/notebook/words/${wordId}/practice`, {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-          });
-        } catch (e) {
-          console.error(e);
-        }
+          const authHeaders: Record<string, string> = {
+            "Content-Type": "application/json",
+          };
+          if (token) {
+            authHeaders["Authorization"] = `Bearer ${token}`;
+          }
 
-        onSuccess(usedHint);
-      },
-    });
+          // Gọi API cập nhật tiến độ
+          try {
+            await fetch(`https://tiengtrung-7hto.onrender.com/api/notebook/words/${wordId}/practice`, {
+              method: "PATCH",
+              headers: authHeaders,
+            });
+          } catch (e) {
+            console.error(e);
+          }
+
+          onSuccess(usedHint);
+        },
+      });
+    } catch (e) {
+      console.error("Quiz init error:", e);
+    }
   };
 
   useEffect(() => {

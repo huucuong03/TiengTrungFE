@@ -1,16 +1,15 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Button, Card, Typography, Space, Progress, Tag, message } from "antd";
+import { useState, useRef } from "react";
+import { Button, Card, Typography, Space, Tag, message } from "antd";
 import {
   AudioOutlined,
   SoundOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
-  ReloadOutlined,
 } from "@ant-design/icons";
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 interface PronunciationTrainerProps {
   hanzi: string;
@@ -79,7 +78,7 @@ export default function PronunciationTrainer({
       }
     };
 
-    recognition.onerror = (e: any) => {
+    recognition.onerror = () => {
       setIsListening(false);
       message.warning("Không nhận diện được giọng nói, vui lòng thử lại.");
     };
@@ -96,7 +95,6 @@ export default function PronunciationTrainer({
         background: status === "correct" ? "#f6ffed" : status === "incorrect" ? "#fff2e8" : "#ffffff",
       }}
     >
-      {/* Sửa lại direction="vertical" chuẩn Ant Design */}
       <Space direction="vertical" size="middle" style={{ width: "100%" }}>
         <div>
           <Text style={{ fontSize: 48, fontWeight: "bold", color: "#1677ff", lineHeight: 1 }}>
