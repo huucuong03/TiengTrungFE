@@ -15,3 +15,40 @@ body {
   padding: 0;
   font-family: Arial, Helvetica, sans-serif;
 }
+@media (max-width: 768px) {
+  /* 1. Giảm khoảng lề trang chung để tận dụng tối đa chiều rộng màn hình */
+  .pinyin-container, div[style*="max-width: 1600px"] {
+    padding: 12px 8px !important;
+  }
+
+  /* 2. Ép các bố cục chia đôi (flex row) thành xếp dọc (column) trên điện thoại */
+  .stroke-layout, .practice-grid {
+    flex-direction: column !important;
+    align-items: center !important;
+    width: 100% !important;
+  }
+
+  /* 3. Phóng to và căn giữa các ô luyện viết chữ Hán để dễ thao tác bằng ngón tay */
+  .cell-container, canvas.draw-canvas {
+    width: 280px !important;
+    height: 280px !important;
+    max-width: 90vw;
+    max-height: 90vw;
+  }
+
+  /* 4. Thu nhỏ bảng Pinyin một chút hoặc cho phép cuộn ngang mượt mà */
+  .ant-table-wrapper {
+    overflow-x: auto;
+  }
+  
+  .ant-table-cell {
+    padding: 6px 4px !important;
+    font-size: 13px !important;
+  }
+
+  /* 5. Phóng to các nút bấm và tùy chọn trắc nghiệm để không bị bấm nhầm */
+  button[type="primary"], .ant-btn-lg {
+    height: 48px !important;
+    font-size: 16px !important;
+  }
+}

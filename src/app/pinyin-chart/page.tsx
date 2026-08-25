@@ -152,13 +152,7 @@ export default function PinyinChartPage() {
   }, []);
 
   const playSound = (text: string, tone: number = selectedTone) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      message.warning("Trình duyệt không hỗ trợ phát âm thanh");
-      return;
-    }
-
-    const synth = window.speechSynthesis;
-    synth.cancel(); // Dừng các âm đang phát trước đó
+    if (typeof window === "undefined") return;
 
     const clean = text.trim().toLowerCase();
     let textToSpeak = clean;
@@ -171,24 +165,17 @@ export default function PinyinChartPage() {
       textToSpeak = applyToneToSyllable(clean, tone);
     }
 
-    const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    utterance.lang = "zh-CN";
-    utterance.rate = 0.85;
+    // Sử dụng Google TTS Audio API trực tiếp — Chạy cực tốt trên điện thoại di động
+    const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(
+      textToSpeak
+    )}&tl=zh-CN&client=tw-ob`;
 
-    // Cố gắng tìm giọng tiếng Trung chuẩn của hệ thống nếu có
-    const voices = synth.getVoices();
-    const zhVoice = voices.find((v) => v.lang === "zh-CN" || v.lang.startsWith("zh"));
-    if (zhVoice) {
-      utterance.voice = zhVoice;
-    }
-
-    // Xử lý sự kiện nếu trình duyệt lỗi phát âm
-    utterance.onerror = (e) => {
-      console.error("Speech synthesis error:", e);
-      message.error("Không thể phát âm thanh trên thiết bị này");
-    };
-
-    synth.speak(utterance);
+    const audio = new Audio(audioUrl);
+    audio.playbackRate = 0.9; // Chỉnh tốc độ chậm một chút để dễ nghe
+    audio.play().catch((err) => {
+      console.error("Audio playback error on mobile:", err);
+      message.error("Thiết bị không phát được âm thanh, hãy thử chạm vào màn hình trước.");
+    });
   };
 
   // Phát âm 2 lần cách nhau đúng 2 giây (2000ms)
@@ -196,7 +183,7 @@ export default function PinyinChartPage() {
     playSound(base, tone);
     setTimeout(() => {
       playSound(base, tone);
-    }, 2000);
+    }, 3000);
   };
 
   const allValidSyllables = useMemo(() => {
