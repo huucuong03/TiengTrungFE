@@ -172,23 +172,38 @@ export default function PinyinChartPage() {
     }
 
     const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    utterance.lang = "zh-CN";
-    utterance.rate = 0.85;
+    utterance.lang = "zh-CN"; // Bắt buộc đặt ngôn ngữ chuẩn
+    utterance.rate = 0.85;   // Tốc độ đọc chậm rãi
 
-    // Cố gắng tìm giọng tiếng Trung chuẩn của hệ thống nếu có
-    const voices = synth.getVoices();
-    const zhVoice = voices.find((v) => v.lang === "zh-CN" || v.lang.startsWith("zh"));
-    if (zhVoice) {
-      utterance.voice = zhVoice;
-    }
-
-    // Xử lý sự kiện nếu trình duyệt lỗi phát âm
-    utterance.onerror = (e) => {
-      console.error("Speech synthesis error:", e);
-      message.error("Không thể phát âm thanh trên thiết bị này");
+    // Hàm thực hiện phát âm
+    const speakNow = () => {
+      const voices = synth.getVoices();
+      // Ưu tiên tìm giọng tiếng Trung, nếu không có sẽ để trống để trình duyệt tự chọn
+      const zhVoice = voices.find((v) => v.lang === "zh-CN" || v.lang.includes("zh") || v.lang.includes("cmn"));
+      if (zhVoice) {
+        utterance.voice = zhVoice;
+      }
+      synth.speak(utterance);
     };
 
-    synth.speak(utterance);
+    // Trên điện thoại, danh sách voices có thể mất vài mili-giây để load
+    const voices = synth.getVoices();
+    if (voices.length > 0) {
+      speakNow();
+    } else {
+      // Đợi sự kiện load giọng hoàn tất rồi đọc
+      synth.onvoiceschanged = () => {
+        speakNow();
+      };
+      // Fallback gọi luôn nếu sự kiện không kích hoạt
+      setTimeout(() => {
+        if (!synth.speaking) synth.speak(utterance);
+      }, 100);
+    }
+
+    utterance.onerror = (e) => {
+      console.error("Speech synthesis error:", e);
+    };
   };
 
   // Phát âm 2 lần cách nhau đúng 2 giây (2000ms)
@@ -196,7 +211,7 @@ export default function PinyinChartPage() {
     playSound(base, tone);
     setTimeout(() => {
       playSound(base, tone);
-    }, 2000);
+    }, 3000);
   };
 
   const allValidSyllables = useMemo(() => {
