@@ -80,21 +80,40 @@ const TONE_MARKS: Record<string, string[]> = {
 };
 
 const TONE_HANZI_MAPPING: Record<string, string[]> = {
-  a: ["啊", "啊", "啊", "啊"],
-  o: ["喔", "哦", "ǒ", "ò"],
-  e: ["婀", "鹅", "恶", "饿"],
-  i: ["衣", "移", "椅", "意"],
-  u: ["屋", "无", "五", "物"],
-  ü: ["迂", "鱼", "雨", "玉"],
-  v: ["迂", "鱼", "雨", "玉"],
-  ai: ["哀", "癌", "矮", "爱"],
-  ei: ["诶", "éi", "ěi", "èi"],
-  ao: ["熬", "敖", "袄", "傲"],
-  ou: ["欧", "ou", "偶", "藕"],
-  an: ["安", "án", "ǎn", "暗"],
-  en: ["恩", "én", "ěn", "èn"],
-  ang: ["昂", "áng", "ǎng", "àng"],
-  eng: ["鞥", "éng", "ěng", "èng"],
+  a: ["ā", "á", "ǎ", "à"],
+  o: ["ō", "ó", "ǒ", "ò"],
+  e: ["ē", "é", "ě", "è"],
+  i: ["ī", "í", "ǐ", "ì"],
+  u: ["ū", "ú", "ǔ", "ù"],
+  ü: ["ǖ", "ǘ", "ǚ", "ǜ"],
+  v: ["ǖ", "ǘ", "ǚ", "ǜ"],
+  ma: ["妈", "麻", "马", "骂"],
+  ba: ["巴", "拔", "把", "爸"],
+  pa: ["趴", "爬", "把", "怕"],
+  mi: ["米", "迷", "米", "密"],
+  di: ["低", "敌", "底", "地"],
+  ti: ["提", "啼", "体", "替"],
+  lu: ["卢", "芦", "鲁", "路"],
+  nu: ["努", "奴", "努", "怒"],
+  le: ["勒", "肋", "乐", "靸"],
+  ge: ["歌", "阁", "葛", "个"],
+  ke: ["科", "壳", "可", "客"],
+  he: ["喝", "核", "禾", "贺"],
+  ai: ["āi", "ái", "ǎi", "ài"],
+  ei: ["ēi", "éi", "ěi", "èi"],
+  ao: ["āo", "áo", "ǎo", "ào"],
+  ou: ["ōu", "óu", "ǒu", "òu"],
+  an: ["ān", "án", "ǎn", "àn"],
+  en: ["ēn", "én", "ěn", "èn"],
+  ang: ["āng", "áng", "ǎng", "àng"],
+  eng: ["ēng", "éng", "ěng", "èng"],
+};
+
+const INITIAL_HANZI_MAPPING: Record<string, string> = {
+  b: "波", p: "坡", m: "摸", f: "佛", d: "得", t: "特", n: "讷", l: "勒",
+  g: "哥", k: "科", h: "喝", j: "鸡", q: "七", x: "西",
+  zh: "知", ch: "吃", sh: "诗", r: "日", z: "资", c: "疵", s: "思",
+  y: "衣", w: "乌",
 };
 
 function applyToneToSyllable(syllable: string, tone: number): string {
@@ -127,6 +146,7 @@ export default function PinyinChartPage() {
   const [activeTab, setActiveTab] = useState<string>("table");
   const [finalMode, setFinalMode] = useState<"basic" | "nasal">("basic");
   const [selectedTone, setSelectedTone] = useState<number>(0);
+  const audioTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     fetch("/data/pinyin_chart.json")
@@ -151,92 +171,87 @@ export default function PinyinChartPage() {
       });
   }, []);
 
-  const playSound = (text: string, tone: number = selectedTone) => {
-
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-
-      message.warning("Trình duyệt không hỗ trợ phát âm thanh");
-
-      return;
-
-    }
-
-
-
-    const synth = window.speechSynthesis;
-
-    synth.cancel(); // Dừng các âm đang phát trước đó
-
-
-
+  const getTextForSpeech = (text: string, tone: number): string => {
     const clean = text.trim().toLowerCase();
 
-    let textToSpeak = clean;
-
-
-
-    if (tone > 0 && TONE_HANZI_MAPPING[clean] && TONE_HANZI_MAPPING[clean][tone - 1]) {
-
-      textToSpeak = TONE_HANZI_MAPPING[clean][tone - 1];
-
-    } else if (tone === 0 && PINYIN_SOUND_MAPPING[clean]) {
-
-      textToSpeak = PINYIN_SOUND_MAPPING[clean];
-
-    } else if (tone > 0) {
-
-      textToSpeak = applyToneToSyllable(clean, tone);
-
+    if (tone === 0 && INITIAL_HANZI_MAPPING[clean]) {
+      return INITIAL_HANZI_MAPPING[clean];
+    }
+    if (tone === 0 && PINYIN_SOUND_MAPPING[clean]) {
+      return PINYIN_SOUND_MAPPING[clean];
+    }
+    if (tone > 0 && TONE_HANZI_MAPPING[clean]) {
+      const hanzi = TONE_HANZI_MAPPING[clean][tone - 1];
+      if (hanzi) {
+        return hanzi;
+      }
     }
 
+    if (tone > 0) {
+      const UNICODE_TONE_MAP: Record<string, string[]> = {
+        a: ["ā", "á", "ǎ", "à"],
+        o: ["ō", "ó", "ǒ", "ò"],
+        e: ["ē", "é", "ě", "è"],
+        i: ["ī", "í", "ǐ", "ì"],
+        u: ["ū", "ú", "ǔ", "ù"],
+        ü: ["ǖ", "ǘ", "ǚ", "ǜ"],
+        v: ["ǖ", "ǘ", "ǚ", "ǜ"],
+      };
 
-
-    const utterance = new SpeechSynthesisUtterance(textToSpeak);
-
-    utterance.lang = "zh-CN";
-
-    utterance.rate = 0.85;
-
-
-
-    // Cố gắng tìm giọng tiếng Trung chuẩn của hệ thống nếu có
-
-    const voices = synth.getVoices();
-
-    const zhVoice = voices.find((v) => v.lang === "zh-CN" || v.lang.startsWith("zh"));
-
-    if (zhVoice) {
-
-      utterance.voice = zhVoice;
-
+      const toneIdx = tone - 1;
+      let substituted = clean;
+      for (const vowel of ["a", "e", "o", "u", "i", "ü", "v"]) {
+        if (substituted.includes(vowel)) {
+          substituted = substituted.replace(vowel, UNICODE_TONE_MAP[vowel][toneIdx]);
+          break;
+        }
+      }
+      return substituted;
     }
 
-
-
-    // Xử lý sự kiện nếu trình duyệt lỗi phát âm
-
-    utterance.onerror = (e) => {
-
-      console.error("Speech synthesis error:", e);
-
-      message.error("Không thể phát âm thanh trên thiết bị này");
-
-    };
-
-
-
-    synth.speak(utterance);
-
+    return clean;
   };
 
+  const playSound = (text: string, tone: number = selectedTone) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      message.warning("Trình duyệt không hỗ trợ phát âm thanh");
+      return;
+    }
 
+    const synth = window.speechSynthesis;
+    synth.cancel();
 
-  // Phát âm 2 lần cách nhau đúng 2 giây (2000ms)
+    if (!text || !text.trim()) return;
+
+    const textToSpeak = getTextForSpeech(text, tone);
+    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+    utterance.lang = "zh-CN";
+    utterance.rate = 0.8;
+
+    const voices = synth.getVoices();
+    const zhVoice = voices.find((v) => v.lang === "zh-CN" || v.lang.startsWith("zh"));
+    if (zhVoice) {
+      utterance.voice = zhVoice;
+    }
+
+    utterance.onerror = (e) => {
+      console.error("Speech synthesis error:", e);
+    };
+
+    synth.speak(utterance);
+  };
+
   const playAudioTwiceWith2sInterval = (base: string, tone: number) => {
+    if (audioTimeoutRef.current) {
+      clearTimeout(audioTimeoutRef.current);
+      audioTimeoutRef.current = null;
+    }
+
     playSound(base, tone);
-    setTimeout(() => {
+    audioTimeoutRef.current = setTimeout(() => {
       playSound(base, tone);
-    }, 3000);
+      audioTimeoutRef.current = null;
+    }, 2000);
   };
 
   const allValidSyllables = useMemo(() => {
@@ -255,7 +270,6 @@ export default function PinyinChartPage() {
     return Array.from(new Set(list));
   }, [data.rows]);
 
-  /* ---------------- STATE BÀI TẬP 15 CÂU 15S & 7S GIẢI NGHĨA ---------------- */
   type ListeningMode = "tones" | "syllables" | "mixed";
   const [listeningMode, setListeningMode] = useState<ListeningMode>("tones");
   const [questionList, setQuestionList] = useState<QuestionItem[]>([]);
@@ -271,8 +285,8 @@ export default function PinyinChartPage() {
   >([]);
   const [isGameRunning, setIsGameRunning] = useState(false);
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const explanationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const explanationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const clearAllTimers = () => {
     if (timerRef.current) {
@@ -282,6 +296,10 @@ export default function PinyinChartPage() {
     if (explanationTimerRef.current) {
       clearInterval(explanationTimerRef.current);
       explanationTimerRef.current = null;
+    }
+    if (audioTimeoutRef.current) {
+      clearTimeout(audioTimeoutRef.current);
+      audioTimeoutRef.current = null;
     }
   };
 
@@ -385,7 +403,6 @@ export default function PinyinChartPage() {
 
   const currentQ = questionList[quizIndex];
 
-  // 1. Đồng hồ 15s suy nghĩ
   useEffect(() => {
     if (!isGameRunning || quizChecked || isQuizFinished) {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -408,7 +425,6 @@ export default function PinyinChartPage() {
     };
   }, [isGameRunning, quizIndex, quizChecked, isQuizFinished]);
 
-  // 2. Đồng hồ 7s dừng giải thích đáp án
   useEffect(() => {
     if (!isGameRunning || !quizChecked || isQuizFinished) {
       if (explanationTimerRef.current) clearInterval(explanationTimerRef.current);
@@ -433,7 +449,6 @@ export default function PinyinChartPage() {
     };
   }, [isGameRunning, quizChecked, isQuizFinished]);
 
-  // Hết 15s -> Kích hoạt trạng thái giải thích 7s
   const handleTimeoutTrigger = () => {
     if (quizChecked || !currentQ) return;
     setQuizChecked(true);
@@ -443,7 +458,7 @@ export default function PinyinChartPage() {
       ...prev,
       {
         target: currentQ.target,
-        selected: "Hết giờ (15s)",
+        selected: "Hết giờ (13s)",
         isCorrect: false,
         hanzi: currentQ.hanzi,
         meaning: currentQ.meaning,
@@ -451,7 +466,6 @@ export default function PinyinChartPage() {
     ]);
   };
 
-  // Chọn đáp án -> Khóa bảng và kích hoạt giai đoạn 7s giải thích
   const handlePickOptionAndExplain = (selectedOption: string) => {
     if (quizChecked || !currentQ) return;
     if (timerRef.current) clearInterval(timerRef.current);
@@ -474,7 +488,6 @@ export default function PinyinChartPage() {
     ]);
   };
 
-  // Chuyển sang câu kế tiếp sau khi hết 7s
   const advanceToNextQuestion = () => {
     if (quizIndex < questionList.length - 1) {
       const nextIdx = quizIndex + 1;
@@ -531,7 +544,6 @@ export default function PinyinChartPage() {
     finishQuiz();
   };
 
-  /* ---------------- ROWSPAN THEO NHÓM ÂM ---------------- */
   const groupRowSpans = useMemo(() => {
     if (!data.rows || data.rows.length === 0) return [];
     const spans: number[] = [];
@@ -667,7 +679,7 @@ export default function PinyinChartPage() {
           Bảng Ngữ Âm Pinyin & Đấu Trường Luyện Nghe
         </Title>
         <Text type="secondary" style={{ fontSize: 15 }}>
-          Luyện nghe 15 câu: Tự động đọc 2 lần (cách 2s), 15s suy nghĩ và dừng 7s phân tích đáp án chi tiết.
+          Luyện nghe 15 câu: Tự động đọc 2 lần (cách 2s), 13s suy nghĩ và dừng 5s phân tích đáp án chi tiết.
         </Text>
       </div>
 
@@ -753,7 +765,7 @@ export default function PinyinChartPage() {
             key: "quiz",
             label: (
               <span>
-                <TrophyOutlined /> Đấu Trường Phản Xạ (15 Câu • 15s)
+                <TrophyOutlined /> Đấu Trường Phản Xạ (15 Câu • 13s)
               </span>
             ),
             children: (
@@ -770,10 +782,10 @@ export default function PinyinChartPage() {
                     >
                       <CustomerServiceOutlined style={{ fontSize: 44, color: "#1677ff", marginBottom: 12 }} />
                       <Title level={3} style={{ margin: "0 0 8px 0", fontWeight: 800 }}>
-                        Luyện Phản Xạ Nghe 15s & Giải Nghĩa 7s
+                        Luyện Phản Xạ Nghe 13s & Giải Nghĩa 5s
                       </Title>
                       <Paragraph type="secondary" style={{ fontSize: 15, maxWidth: 580, margin: "0 auto" }}>
-                        Mỗi câu máy tự động đọc <strong>2 lần (cách 2 giây)</strong>. Bạn có <strong>15 giây suy nghĩ</strong>, chọn đáp án xong hệ thống sẽ <strong>dừng 7 giây giải thích</strong> mặt chữ và nghĩa trước khi chuyển câu!
+                        Mỗi câu máy tự động đọc <strong>2 lần (cách 2 giây)</strong>. Bạn có <strong>13 giây suy nghĩ</strong>, chọn đáp án xong hệ thống sẽ <strong>dừng 5 giây giải thích</strong> mặt chữ và nghĩa trước khi chuyển câu!
                       </Paragraph>
                     </Card>
 
@@ -877,7 +889,6 @@ export default function PinyinChartPage() {
                   </div>
                 ) : isGameRunning && currentQ ? (
                   <Card style={{ borderRadius: 16, textAlign: "center", padding: "24px 20px" }}>
-                    {/* Top Bar: Chế độ, Đếm ngược & Nút kết thúc sớm */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                       <Tag color="blue" style={{ fontSize: 13, padding: "3px 10px", borderRadius: 12 }}>
                         {listeningMode === "tones"
@@ -887,7 +898,6 @@ export default function PinyinChartPage() {
                           : "🌪️ Hỗn hợp"}
                       </Tag>
 
-                      {/* Hiển thị thời gian: 15s suy nghĩ HOẶC 7s giải thích */}
                       {!quizChecked ? (
                         <Tag
                           color={timeLeft <= 3 ? "error" : "processing"}
@@ -919,7 +929,6 @@ export default function PinyinChartPage() {
                       </Popconfirm>
                     </div>
 
-                    {/* Thanh tiến độ câu hỏi */}
                     <div style={{ marginBottom: 16 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                         <Text type="secondary" style={{ fontSize: 12 }}>Tiến độ bài thi</Text>
@@ -932,7 +941,6 @@ export default function PinyinChartPage() {
                       />
                     </div>
 
-                    {/* Nút Loa Phát Âm (Đọc 2 lần cách 2s) */}
                     <div style={{ margin: "20px 0" }}>
                       <Button
                         type="primary"
@@ -952,7 +960,6 @@ export default function PinyinChartPage() {
                       </div>
                     </div>
 
-                    {/* KHỐI GIẢI THÍCH CHI TIẾT (XUẤT HIỆN TRONG 7 GIÂY) */}
                     {quizChecked && (
                       <div
                         style={{
@@ -988,7 +995,6 @@ export default function PinyinChartPage() {
                       </div>
                     )}
 
-                    {/* Danh Sách 4 Lựa Chọn */}
                     <div
                       style={{
                         display: "grid",
@@ -1037,7 +1043,6 @@ export default function PinyinChartPage() {
                     </div>
                   </Card>
                 ) : (
-                  /* ================= MÀN HÌNH TỔNG KẾT BÀI THI ================= */
                   <Card style={{ borderRadius: 16, padding: "24px 16px" }}>
                     <Result
                       status={
