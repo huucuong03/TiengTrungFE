@@ -178,10 +178,11 @@ export default function PinyinTable({
             onChange={(e) => setSelectedTone(e.target.value)}
             buttonStyle="solid"
           >
-            <Radio.Button value={0}>Thanh 1 ( ā )</Radio.Button>
-            <Radio.Button value={1}>Thanh 2 ( á )</Radio.Button>
-            <Radio.Button value={2}>Thanh 3 ( ǎ )</Radio.Button>
-            <Radio.Button value={3}>Thanh 4 ( à )</Radio.Button>
+            <Radio.Button value={0}>Gốc (Không dấu)</Radio.Button>
+            <Radio.Button value={1}>Thanh 1 ( ā )</Radio.Button>
+            <Radio.Button value={2}>Thanh 2 ( á )</Radio.Button>
+            <Radio.Button value={3}>Thanh 3 ( ǎ )</Radio.Button>
+            <Radio.Button value={4}>Thanh 4 ( à )</Radio.Button>
           </Radio.Group>
         </Space>
       </div>
