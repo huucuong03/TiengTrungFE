@@ -165,16 +165,24 @@ export default function PinyinChartPage() {
       textToSpeak = applyToneToSyllable(clean, tone);
     }
 
-    // Sử dụng Google TTS Audio API trực tiếp — Chạy cực tốt trên điện thoại di động
     const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(
       textToSpeak
     )}&tl=zh-CN&client=tw-ob`;
 
-    const audio = new Audio(audioUrl);
-    audio.playbackRate = 0.9; // Chỉnh tốc độ chậm một chút để dễ nghe
+    // Khởi tạo và kích hoạt trực tiếp ngay lập tức trên mobile
+    const audio = new Audio();
+    audio.src = audioUrl;
+    audio.load();
+    
     audio.play().catch((err) => {
-      console.error("Audio playback error on mobile:", err);
-      message.error("Thiết bị không phát được âm thanh, hãy thử chạm vào màn hình trước.");
+      console.error("Lỗi phát âm trên mobile:", err);
+      // Fallback dự phòng: Nếu Google TTS bị chặn, dùng tạm phát âm giọng mặc định của trình duyệt điện thoại
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(textToSpeak);
+        utterance.lang = "zh-CN";
+        window.speechSynthesis.speak(utterance);
+      }
     });
   };
 
