@@ -152,7 +152,14 @@ export default function PinyinChartPage() {
   }, []);
 
   const playSound = (text: string, tone: number = selectedTone) => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      message.warning("Trình duyệt không hỗ trợ phát âm thanh");
+      return;
+    }
+
+    const synth = window.speechSynthesis;
+    synth.cancel(); // Dừng các âm đang phát trước đó
+
     const clean = text.trim().toLowerCase();
     let textToSpeak = clean;
 
@@ -164,11 +171,24 @@ export default function PinyinChartPage() {
       textToSpeak = applyToneToSyllable(clean, tone);
     }
 
-    const audioUrl = `https://tiengtrung-7hto.onrender.com/api/tts/speak?text=${encodeURIComponent(textToSpeak)}`;
-    const audio = new Audio(audioUrl);
-    audio.play().catch((err) => {
-      console.error("Audio playback error:", err);
-    });
+    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+    utterance.lang = "zh-CN";
+    utterance.rate = 0.85;
+
+    // Cố gắng tìm giọng tiếng Trung chuẩn của hệ thống nếu có
+    const voices = synth.getVoices();
+    const zhVoice = voices.find((v) => v.lang === "zh-CN" || v.lang.startsWith("zh"));
+    if (zhVoice) {
+      utterance.voice = zhVoice;
+    }
+
+    // Xử lý sự kiện nếu trình duyệt lỗi phát âm
+    utterance.onerror = (e) => {
+      console.error("Speech synthesis error:", e);
+      message.error("Không thể phát âm thanh trên thiết bị này");
+    };
+
+    synth.speak(utterance);
   };
 
   // Phát âm 2 lần cách nhau đúng 2 giây (2000ms)
