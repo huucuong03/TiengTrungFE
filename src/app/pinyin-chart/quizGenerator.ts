@@ -45,7 +45,7 @@ export function buildMeaningfulMixedQuestions(
       target: correctTarget,
       options: options,
       hanzi: item.hanzi,
-      meaning: item.meaning,
+      meaning: item.meaning || "", // 👈 Đảm bảo có "|| """ ở đây để khớp kiểu string
     };
   });
 }
