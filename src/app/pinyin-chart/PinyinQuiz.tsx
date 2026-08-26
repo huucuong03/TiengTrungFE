@@ -7,10 +7,7 @@ import {
   Tag,
   Progress,
   Result,
-  Row,
-  Col,
   Popconfirm,
-  Space,
 } from "antd";
 import {
   SoundOutlined,
@@ -70,9 +67,10 @@ export default function PinyinQuiz({
   setIsGameRunning,
   setActiveTab,
 }: PinyinQuizProps) {
+  // 1. MÀN HÌNH CHỌN CHẾ ĐỘ (Đã lược bỏ 2 thẻ cũ, chỉ giữ Hỗn Hợp từ có nghĩa)
   if (!isGameRunning && !isQuizFinished) {
     return (
-      <div style={{ maxWidth: 840, margin: "0 auto" }}>
+      <div style={{ maxWidth: 640, margin: "0 auto" }}>
         <Card
           style={{
             borderRadius: 16,
@@ -89,111 +87,70 @@ export default function PinyinQuiz({
           <Paragraph type="secondary" style={{ fontSize: 15, maxWidth: 580, margin: "0 auto" }}>
             Mỗi câu máy tự động đọc <strong>2 lần (cách 2 giây)</strong>. Bạn có{" "}
             <strong>13 giây suy nghĩ</strong>, chọn đáp án xong hệ thống sẽ{" "}
-            <strong>dừng 5 giây giải thích</strong> mặt chữ và nghĩa trước khi chuyển câu!
+            <strong>dừng 5 giây giải thích</strong> mặt chữ Hán và nghĩa tiếng Việt trước khi chuyển câu!
           </Paragraph>
         </Card>
 
-        <Row gutter={[16, 16]}>
-          <Col xs={24} md={8}>
-            <Card
-              hoverable
-              onClick={() => startQuiz("tones")}
-              style={{
-                borderRadius: 14,
-                height: "100%",
-                border: "1px solid #ffe58f",
-                background: "#fffbe6",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-              }}
-            >
-              <div>
-                <Tag color="orange" style={{ fontWeight: 600 }}>CƠ BẢN (15 CÂU)</Tag>
-                <Title level={4} style={{ margin: "8px 0 4px 0" }}>🎯 4 Thanh Điệu</Title>
-                <Text type="secondary" style={{ fontSize: 13, display: "block" }}>
-                  Cố định âm vị, phân biệt 4 dấu thanh (mā, má, mǎ, mà).
-                </Text>
-              </div>
-              <Button type="primary" block icon={<PlayCircleOutlined />} style={{ marginTop: 16, borderRadius: 8, background: "#fa8c16" }}>
-                Bắt đầu ngay
-              </Button>
-            </Card>
-          </Col>
+        {/* Thẻ Thử Thách Hỗn Hợp DUY NHẤT */}
+        <Card
+          hoverable
+          onClick={() => startQuiz("mixed")}
+          style={{
+            borderRadius: 16,
+            border: "1.5px solid #91caff",
+            background: "#f0f5ff",
+            padding: "12px 8px",
+            textAlign: "center",
+            boxShadow: "0 4px 12px rgba(22,119,255,0.08)",
+          }}
+        >
+          <Tag color="blue" style={{ fontWeight: 600, padding: "2px 10px", fontSize: 13 }}>
+            THỬ THÁCH (20 CÂU)
+          </Tag>
+          <Title level={3} style={{ margin: "12px 0 6px 0", color: "#0958d9" }}>
+            🌪️ Thử Thách Từ Vựng Hỗn Hợp
+          </Title>
+          <Text type="secondary" style={{ fontSize: 14, display: "block", marginBottom: 20 }}>
+            Luyện nghe các từ vựng Hán ngữ thực tế có đầy đủ Chữ Hán và Nghĩa. Thử thách phản xạ nhận diện phiên âm chuẩn.
+          </Text>
 
-          <Col xs={24} md={8}>
-            <Card
-              hoverable
-              onClick={() => startQuiz("syllables")}
-              style={{
-                borderRadius: 14,
-                height: "100%",
-                border: "1px solid #b7eb8f",
-                background: "#f6ffed",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-              }}
-            >
-              <div>
-                <Tag color="green" style={{ fontWeight: 600 }}>TRUNG CẤP (15 CÂU)</Tag>
-                <Title level={4} style={{ margin: "8px 0 4px 0" }}>⚡ Âm Ghép</Title>
-                <Text type="secondary" style={{ fontSize: 13, display: "block" }}>
-                  Nghe và chọn đúng âm tiết trong các âm tương tự (bā, pā, mā, dā).
-                </Text>
-              </div>
-              <Button type="primary" block icon={<PlayCircleOutlined />} style={{ marginTop: 16, borderRadius: 8, background: "#52c41a" }}>
-                Bắt đầu ngay
-              </Button>
-            </Card>
-          </Col>
-
-          <Col xs={24} md={8}>
-            <Card
-              hoverable
-              onClick={() => startQuiz("mixed")}
-              style={{
-                borderRadius: 14,
-                height: "100%",
-                border: "1px solid #adc6ff",
-                background: "#f0f5ff",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-              }}
-            >
-              <div>
-                <Tag color="blue" style={{ fontWeight: 600 }}>THỬ THÁCH (15 CÂU)</Tag>
-                <Title level={4} style={{ margin: "8px 0 4px 0" }}>🌪️ Hỗn Hợp</Title>
-                <Text type="secondary" style={{ fontSize: 13, display: "block" }}>
-                  Ngẫu nhiên cả âm vị và dấu thanh, thử thách phản xạ tối đa.
-                </Text>
-              </div>
-              <Button type="primary" block icon={<PlayCircleOutlined />} style={{ marginTop: 16, borderRadius: 8 }}>
-                Bắt đầu ngay
-              </Button>
-            </Card>
-          </Col>
-        </Row>
+          <Button
+            type="primary"
+            size="large"
+            icon={<PlayCircleOutlined />}
+            style={{
+              borderRadius: 10,
+              height: 48,
+              paddingLeft: 32,
+              paddingRight: 32,
+              fontSize: 16,
+              fontWeight: 700,
+              background: "linear-gradient(135deg, #1677ff 0%, #0958d9 100%)",
+            }}
+          >
+            Bắt đầu luyện tập ngay
+          </Button>
+        </Card>
       </div>
     );
   }
 
+  // 2. MÀN HÌNH ĐANG LÀM BÀI
   if (isGameRunning && currentQ) {
     return (
       <Card style={{ borderRadius: 16, textAlign: "center", padding: "24px 20px", maxWidth: 840, margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <Tag color="blue" style={{ fontSize: 13, padding: "3px 10px", borderRadius: 12 }}>
-            {listeningMode === "tones" ? "🎯 Phân biệt 4 thanh" : listeningMode === "syllables" ? "⚡ Phản xạ âm ghép" : "🌪️ Hỗn hợp"}
+            🌪️ Hỗn hợp (Từ có nghĩa)
           </Tag>
 
           {!quizChecked ? (
             <Tag color={timeLeft <= 3 ? "error" : "processing"} icon={<ClockCircleOutlined />} style={{ fontSize: 14, fontWeight: "bold", padding: "3px 12px", borderRadius: 12 }}>
-              Thời gian suy nghĩ: {timeLeft}s
+              ⏱️ {timeLeft}s
             </Tag>
           ) : (
             <Tag color="purple" icon={<InfoCircleOutlined />} style={{ fontSize: 14, fontWeight: "bold", padding: "3px 12px", borderRadius: 12 }}>
-              Chuyển câu sau: {explanationTimeLeft}s
+              📖 {explanationTimeLeft}s
             </Tag>
           )}
 
@@ -218,6 +175,16 @@ export default function PinyinQuiz({
           <Progress percent={Math.round(((quizIndex + 1) / totalQuestions) * 100)} showInfo={false} strokeColor="#1677ff" />
         </div>
 
+        {/* Hiển thị số câu đúng/sai */}
+        <div style={{ display: "flex", justifyContent: "center", gap: 24, marginBottom: 16 }}>
+          <Text>
+            ✅ Đúng: <strong style={{ color: "#52c41a" }}>{correctCount}</strong>
+          </Text>
+          <Text>
+            ❌ Sai: <strong style={{ color: "#ff4d4f" }}>{quizHistory.length - correctCount}</strong>
+          </Text>
+        </div>
+
         <div style={{ margin: "20px 0" }}>
           <Button
             type="primary"
@@ -238,28 +205,35 @@ export default function PinyinQuiz({
         </div>
 
         {quizChecked && (
-          <div style={{ background: "#f6ffed", padding: "12px 20px", borderRadius: 12, border: "1.5px solid #b7eb8f", marginBottom: 20 }}>
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-              {currentQ.hanzi && (
-                <Text strong style={{ fontSize: 36, color: "#1677ff", lineHeight: 1 }}>
-                  {currentQ.hanzi}
-                </Text>
-              )}
-              <div style={{ textAlign: "left" }}>
-                <div>
-                  <Text code style={{ fontSize: 20, color: "#d4380d", fontWeight: 700 }}>
-                    {currentQ.target}
-                  </Text>
-                </div>
-                {currentQ.meaning && (
-                  <div style={{ marginTop: 4 }}>
-                    <Text type="secondary" style={{ fontSize: 14 }}>
-                      Nghĩa: <strong style={{ color: "#262626" }}>{currentQ.meaning}</strong>
-                    </Text>
-                  </div>
-                )}
-              </div>
+          <div style={{ background: "#f6ffed", padding: "16px 20px", borderRadius: 12, border: "1.5px solid #b7eb8f", marginBottom: 20 }}>
+            <div style={{ fontSize: 32, fontWeight: 800, color: "#1677ff", marginBottom: 4 }}>
+              {currentQ.target}
             </div>
+
+            {/* Mô phỏng hướng đi của thanh điệu */}
+            <Tag color="blue" style={{ fontSize: 13, padding: "2px 10px", marginBottom: 8 }}>
+              {currentQ.tone === 1 && "Thanh 1: Cao, bằng phẳng (5-5)"}
+              {currentQ.tone === 2 && "Thanh 2: Bắt đầu trung bình, tăng cao (3-5)"}
+              {currentQ.tone === 3 && "Thanh 3: Xuống thấp rồi lên nhẹ (2-1-4)"}
+              {currentQ.tone === 4 && "Thanh 4: Từ cao nhất giật mạnh xuống (5-1)"}
+            </Tag>
+
+            {/* Hiển thị chữ Hán và Nghĩa thực tế */}
+            {currentQ.hanzi && (
+              <div style={{ marginTop: 6, color: "#262626", fontSize: 15 }}>
+                Chữ Hán: <strong style={{ fontSize: 18, color: "#d4b106" }}>{currentQ.hanzi}</strong>
+                {currentQ.meaning && <span> — Nghĩa: <strong>{currentQ.meaning}</strong></span>}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Thông báo hết giờ */}
+        {quizChecked && quizSelected === "Hết giờ" && (
+          <div style={{ background: "#fff1f0", padding: "12px 20px", borderRadius: 12, border: "1.5px solid #ffa39e", marginBottom: 20 }}>
+            <Text type="danger" style={{ fontSize: 16 }}>
+              ⏰ Hết giờ! Đáp án đúng là: <strong>{currentQ.target}</strong>
+            </Text>
           </div>
         )}
 
@@ -267,17 +241,18 @@ export default function PinyinQuiz({
           {currentQ.options.map((opt: string) => {
             let isCorrectOpt = false;
             let isWrongSelected = false;
+            let isSelected = false;
 
             if (quizChecked) {
               if (opt === currentQ.target) isCorrectOpt = true;
-              else if (opt === quizSelected) isWrongSelected = true;
+              if (opt === quizSelected && opt !== currentQ.target) isWrongSelected = true;
+              if (opt === quizSelected) isSelected = true;
             }
 
             return (
               <Button
                 key={opt}
                 size="large"
-                danger={isWrongSelected}
                 disabled={quizChecked}
                 onClick={() => handlePickOption(opt)}
                 style={{
@@ -285,13 +260,16 @@ export default function PinyinQuiz({
                   fontSize: 22,
                   fontWeight: 700,
                   borderRadius: 12,
-                  background: isCorrectOpt ? "#52c41a" : undefined,
-                  borderColor: isCorrectOpt ? "#52c41a" : undefined,
-                  color: isCorrectOpt ? "#ffffff" : undefined,
+                  background: isCorrectOpt ? "#52c41a" : isWrongSelected ? "#ff4d4f" : undefined,
+                  borderColor: isCorrectOpt ? "#52c41a" : isWrongSelected ? "#ff4d4f" : undefined,
+                  color: isCorrectOpt || isWrongSelected ? "#ffffff" : undefined,
                   boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                  opacity: quizChecked && !isCorrectOpt && !isSelected ? 0.5 : 1,
                 }}
               >
                 {opt}
+                {isCorrectOpt && <CheckCircleOutlined style={{ marginLeft: 8 }} />}
+                {isWrongSelected && <CloseCircleOutlined style={{ marginLeft: 8 }} />}
               </Button>
             );
           })}
@@ -300,7 +278,7 @@ export default function PinyinQuiz({
     );
   }
 
-  // Kết quả Quiz
+  // 3. MÀN HÌNH KẾT QUẢ
   const attemptedCount = quizHistory.length || 1;
   const scorePercent = Math.round((correctCount / attemptedCount) * 100);
 
@@ -327,11 +305,11 @@ export default function PinyinQuiz({
           ) : null
         }
         extra={[
-          <Button type="primary" key="retry" size="large" icon={<ReloadOutlined />} onClick={() => startQuiz(listeningMode)} style={{ borderRadius: 8 }}>
-            Luyện tập lại (15 câu mới)
+          <Button type="primary" key="retry" size="large" icon={<ReloadOutlined />} onClick={() => startQuiz("mixed")} style={{ borderRadius: 8 }}>
+            Luyện tập lại (20 câu mới)
           </Button>,
           <Button key="menu" size="large" onClick={() => { setIsQuizFinished(false); setIsGameRunning(false); }} style={{ borderRadius: 8 }}>
-            Chọn chế độ khác
+            Màn hình chính
           </Button>,
           <Button key="table" size="large" onClick={() => setActiveTab("table")}>
             Xem Bảng Pinyin

@@ -6,15 +6,14 @@ import { BulbOutlined, TrophyOutlined, CustomerServiceOutlined } from "@ant-desi
 
 import { PinyinDataState, QuestionItem, ListeningMode, QuizHistoryItem } from "./types";
 import { applyToneToSyllable, getHanziForTone, getPronunciationText, playAudio } from "./pinyinUtils";
-import { TONE_HANZI_MAPPING } from "./pinyinData"; // ✅ THÊM DÒNG NÀY
 import PinyinTable from "./PinyinTable";
 import PinyinQuiz from "./PinyinQuiz";
 
 const { Title, Text } = Typography;
 
-const TOTAL_QUESTIONS = 15;
+const TOTAL_QUESTIONS = 20;
 const THINKING_TIME_LIMIT = 13;
-const EXPLANATION_TIME = 5;
+const EXPLANATION_TIME = 3;
 
 export default function PinyinChartPage() {
   const [loading, setLoading] = useState(true);
@@ -30,7 +29,7 @@ export default function PinyinChartPage() {
   const [selectedTone, setSelectedTone] = useState<number>(1);
 
   // Quiz States
-  const [listeningMode, setListeningMode] = useState<ListeningMode>("tones");
+  const [listeningMode, setListeningMode] = useState<ListeningMode>("mixed");
   const [questionList, setQuestionList] = useState<QuestionItem[]>([]);
   const [quizIndex, setQuizIndex] = useState(0);
   const [correctCount, setCorrectCount] = useState(0);
@@ -45,6 +44,47 @@ export default function PinyinChartPage() {
   const audioTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const explanationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Xóa sạch tất cả bộ đếm giờ và dừng đọc âm thanh
+  const clearAllTimers = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (explanationTimerRef.current) clearInterval(explanationTimerRef.current);
+    if (audioTimeoutRef.current) clearTimeout(audioTimeoutRef.current);
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+  };
+
+  // -------------------------------------------------------------
+  // HOOK TỰ ĐỘNG XỬ LÝ KHI RỜI TRANG / CHUYỂN TAB / ĐÓNG TRÌNH DUYỆT
+  // -------------------------------------------------------------
+  useEffect(() => {
+    // 1. Cảnh báo khi reload hoặc đóng tab khi đang làm bài
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isGameRunning && !isQuizFinished) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+
+    // 2. Tạm dừng bộ đếm/âm thanh khi ẩn tab hoặc chuyển tab trình duyệt
+    const handleVisibilityChange = () => {
+      if (document.hidden && isGameRunning && !isQuizFinished) {
+        clearAllTimers();
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // 3. Cleanup khi component unmount (chuyển trang trong ứng dụng)
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      clearAllTimers();
+      setIsGameRunning(false);
+    };
+  }, [isGameRunning, isQuizFinished]);
 
   useEffect(() => {
     fetch("/data/pinyin_chart.json")
@@ -70,19 +110,17 @@ export default function PinyinChartPage() {
   const playSound = (text: string, tone?: number) => {
     if (!text) return;
     const clean = text.trim().toLowerCase();
-    
-    // 1. Nếu text truyền vào ĐÃ CÓ DẤU (ví dụ: bā, bái, bǎi, bài) -> Đọc thẳng luôn, KHÔNG BAO GIỜ bị loạn vị trí nữa!
+
     const hasToneMark = /[āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]/.test(clean);
     if (hasToneMark) {
       playAudio(clean);
       return;
     }
-    
-    // 2. Nếu text chưa có dấu (dùng cho trường hợp khác) thì mới tính theo tone
+
     const activeTone = (tone !== undefined && tone >= 1 && tone <= 4) ? tone : (selectedTone >= 1 && selectedTone <= 4 ? selectedTone : 1);
-    
+
     const pronunciation = getPronunciationText(clean, activeTone);
-    if (pronunciation && pronunciation.text && pronunciation.text !== "—") {
+    if (pronunciation && pronunciation.text && pronunciation.text !== "——") {
       playAudio(pronunciation.text);
     }
   };
@@ -100,15 +138,6 @@ export default function PinyinChartPage() {
     }, 2500);
   };
 
-  const clearAllTimers = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (explanationTimerRef.current) clearInterval(explanationTimerRef.current);
-    if (audioTimeoutRef.current) clearTimeout(audioTimeoutRef.current);
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
-  };
-
   const allValidSyllables = data.rows.flatMap((row: any) =>
     Object.keys(row)
       .filter((k) => k !== "group" && k !== "initial")
@@ -116,13 +145,13 @@ export default function PinyinChartPage() {
       .filter((val) => typeof val === "string" && val.trim())
   );
 
-  const startQuiz = async (mode: ListeningMode) => {
+  const startQuiz = async (mode: ListeningMode = "mixed") => {
     clearAllTimers();
-    setListeningMode(mode);
+    setListeningMode("mixed");
     setLoading(true);
 
     try {
-      const res = await fetch(`https://tiengtrung-7hto.onrender.com/api/dictionary/pinyin-drills?mode=${mode}`);
+      const res = await fetch(`https://tiengtrung-7hto.onrender.com/api/dictionary/pinyin-drills?mode=mixed`);
       const resData = await res.json();
       let questions: QuestionItem[] = [];
 
@@ -137,7 +166,7 @@ export default function PinyinChartPage() {
           meaning: q.meaning ? String(q.meaning) : undefined,
         }));
       } else {
-        questions = buildRandomQuestionsFallback(mode);
+        questions = buildRandomQuestionsFallback();
       }
 
       setQuestionList(questions);
@@ -159,39 +188,262 @@ export default function PinyinChartPage() {
     }
   };
 
-  const buildRandomQuestionsFallback = (mode: ListeningMode): QuestionItem[] => {
+  const buildRandomQuestionsFallback = (): QuestionItem[] => {
     const pool: string[] = Array.from(new Set(allValidSyllables));
     const generated: QuestionItem[] = [];
 
-    for (let i = 0; i < TOTAL_QUESTIONS; i++) {
-      const baseTarget: string = pool[i % pool.length];
-      const randomTone = Math.floor(Math.random() * 4) + 1;
-      const targetWithTone = applyToneToSyllable(baseTarget, randomTone);
-      let options: string[] = [];
+    // ✅ MỞ RỘNG: Nhóm âm dễ nhầm
+    const confusingGroups: Record<string, string[]> = {
+      // Thanh mẫu
+      z: ["c", "s", "zh"],
+      c: ["z", "s", "ch"],
+      s: ["z", "c", "sh"],
+      zh: ["ch", "sh", "z"],
+      ch: ["zh", "sh", "c"],
+      sh: ["zh", "ch", "s"],
+      b: ["p", "m", "f"],
+      p: ["b", "f", "m"],
+      m: ["b", "p", "n"],
+      f: ["b", "p", "h"],
+      d: ["t", "n", "l"],
+      t: ["d", "l", "n"],
+      n: ["d", "t", "l"],
+      l: ["d", "t", "n"],
+      g: ["k", "h"],
+      k: ["g", "h"],
+      h: ["g", "k", "f"],
+      j: ["q", "x", "zh"],
+      q: ["j", "x", "ch"],
+      x: ["j", "q", "sh"],
+      r: ["l", "n", "y"],
+      y: ["w", "r", "l"],
+      w: ["y", "r", "m"],
+      // Vần
+      a: ["ai", "an", "ang", "ao"],
+      o: ["ou", "ong", "uo"],
+      e: ["ei", "en", "eng", "er"],
+      i: ["ia", "ian", "iang", "iao", "ie", "in", "ing", "iong", "iu"],
+      u: ["ua", "uai", "uan", "uang", "ui", "un", "uo", "ong"],
+      ü: ["üan", "üe", "ün", "iong"],
+      // Vần mũi
+      an: ["ang", "en", "ian", "uan"],
+      ang: ["an", "eng", "iang", "uang"],
+      en: ["eng", "an", "in", "un"],
+      eng: ["en", "ang", "ing", "ong"],
+      in: ["ing", "en", "ian"],
+      ing: ["in", "eng", "iang"],
+      un: ["ong", "en", "uan"],
+      ong: ["un", "eng", "iong"],
+      // Vần kép
+      ai: ["ei", "an", "ao"],
+      ei: ["ai", "en", "ui"],
+      ao: ["ou", "an", "iao"],
+      ou: ["ao", "un", "iu"],
+      ia: ["ian", "iang", "ie", "iao"],
+      ie: ["ia", "ian", "üe"],
+      ua: ["uan", "uang", "uo"],
+      uo: ["ua", "uan", "ou"],
+      üe: ["ie", "üan", "ün"],
+      iao: ["iao", "iu", "ian"],
+      iu: ["iu", "iao", "iou"],
+      ui: ["ui", "ei", "un"],
+      uai: ["uai", "uan", "uang"],
+      ian: ["ian", "iang", "in", "uan"],
+      iang: ["iang", "ian", "uang", "ing"],
+      uan: ["uan", "uang", "un", "ian"],
+      uang: ["uang", "uan", "iang"],
+      üan: ["üan", "üe", "ün", "uan"],
+      ün: ["ün", "üan", "in", "un"],
+      iong: ["iong", "ong", "ing"],
+    };
 
-      if (mode === "tones") {
-        options = [1, 2, 3, 4].map((t) => applyToneToSyllable(baseTarget, t));
-      } else {
-        const distractors = pool.filter((s) => s !== baseTarget).sort(() => 0.5 - Math.random()).slice(0, 3);
-        options = [targetWithTone, ...distractors.map((s) => applyToneToSyllable(s, randomTone))].sort(() => 0.5 - Math.random());
+    // ✅ MỞ RỘNG: Âm tiết tương tự
+    const similarSyllables: Record<string, string[]> = {
+      "shi": ["si", "chi", "zhi", "xi"],
+      "si": ["shi", "ci", "zi", "xi"],
+      "chi": ["shi", "qi", "zhi", "ci"],
+      "zi": ["zhi", "ci", "si", "zi"],
+      "ci": ["si", "chi", "zi", "ci"],
+      "zhi": ["shi", "chi", "zi", "zhi"],
+      "ji": ["qi", "xi", "zhi", "ji"],
+      "qi": ["ji", "xi", "chi", "qi"],
+      "xi": ["ji", "qi", "shi", "xi"],
+      "ju": ["qu", "xu", "zhu", "ju"],
+      "qu": ["ju", "xu", "chu", "qu"],
+      "xu": ["ju", "qu", "shu", "xu"],
+      "ban": ["ben", "bin", "bang", "ban"],
+      "ben": ["ban", "bin", "beng", "ben"],
+      "bin": ["ban", "ben", "bing", "bin"],
+      "bang": ["beng", "bing", "ban", "bang"],
+      "beng": ["bang", "bing", "ben", "beng"],
+      "bing": ["bin", "bang", "beng", "bing"],
+      "dan": ["dan", "dang", "den", "deng"],
+      "dang": ["dang", "dan", "deng", "dong"],
+      "deng": ["deng", "dang", "dong", "den"],
+      "dong": ["dong", "deng", "dang", "dun"],
+      "tian": ["tian", "tiao", "tie", "ting"],
+      "tiao": ["tiao", "tian", "tie", "ting"],
+      "tie": ["tie", "tian", "tiao", "ting"],
+      "ting": ["ting", "tian", "tiao", "tie"],
+      "guan": ["guan", "guang", "gun", "guai"],
+      "guang": ["guang", "guan", "guai", "gun"],
+      "guai": ["guai", "guan", "guang", "gua"],
+      "gun": ["gun", "guan", "guang", "guen"],
+    };
+
+    const getInitial = (syllable: string): string => {
+      const match = syllable.match(/^([bpmfdtnlgkhjqxzcsryw]+)/);
+      return match ? match[0] : "";
+    };
+
+    const getFinal = (syllable: string): string => {
+      const initial = getInitial(syllable);
+      return syllable.replace(initial, "");
+    };
+
+    // ✅ HÀM MỚI: Lấy danh sách thanh có nghĩa
+    const getValidTones = (syllable: string): number[] => {
+      const tones: number[] = [];
+      for (let t = 1; t <= 4; t++) {
+        const hanzi = getHanziForTone(syllable, t);
+        if (hanzi && hanzi !== "—" && hanzi !== "——") {
+          tones.push(t);
+        }
+      }
+      return tones;
+    };
+
+    for (let i = 0; i < TOTAL_QUESTIONS; i++) {
+      // Chọn âm tiết có nhiều thanh có nghĩa
+      let baseTarget = pool[Math.floor(Math.random() * pool.length)] || "ba";
+      let attempts = 0;
+      while (attempts < 20) {
+        const validTones = getValidTones(baseTarget);
+        if (validTones.length >= 2) break;
+        baseTarget = pool[Math.floor(Math.random() * pool.length)] || "ba";
+        attempts++;
       }
 
-      const hanzi = getHanziForTone(baseTarget, randomTone);
+      const validTones = getValidTones(baseTarget);
+      const chosenTone = validTones.length > 0
+        ? validTones[Math.floor(Math.random() * validTones.length)]
+        : Math.floor(Math.random() * 4) + 1;
+
+      const targetWithTone = applyToneToSyllable(baseTarget, chosenTone);
+      const distractorSet = new Set<string>();
+
+      // === BẪY 1: CÙNG ÂM GỐC, KHÁC THANH ===
+      const otherTones = [1, 2, 3, 4].filter((t) => t !== chosenTone);
+      for (const ot of otherTones) {
+        const hanzi = getHanziForTone(baseTarget, ot);
+        if (hanzi && hanzi !== "—" && hanzi !== "——") {
+          distractorSet.add(applyToneToSyllable(baseTarget, ot));
+        }
+      }
+
+      // === BẪY 2: NHẦM PHỤ ÂM ĐẦU ===
+      const initial = getInitial(baseTarget);
+      const confuseInitials = confusingGroups[initial] || [];
+      for (const ci of confuseInitials) {
+        const confusedBase = baseTarget.replace(initial, ci);
+        if (pool.includes(confusedBase)) {
+          const hanzi = getHanziForTone(confusedBase, chosenTone);
+          if (hanzi && hanzi !== "—" && hanzi !== "——") {
+            distractorSet.add(applyToneToSyllable(confusedBase, chosenTone));
+          }
+        }
+      }
+
+      // === BẪY 3: NHẦM VẦN ===
+      const finalPart = getFinal(baseTarget);
+      const confuseFinals = confusingGroups[finalPart] || [];
+      for (const cf of confuseFinals) {
+        const confusedBase = initial + cf;
+        if (pool.includes(confusedBase)) {
+          const hanzi = getHanziForTone(confusedBase, chosenTone);
+          if (hanzi && hanzi !== "—" && hanzi !== "——") {
+            distractorSet.add(applyToneToSyllable(confusedBase, chosenTone));
+          }
+        }
+      }
+
+      // === BẪY 4: ÂM TIẾT TƯƠNG TỰ ===
+      const similar = similarSyllables[baseTarget] || [];
+      for (const sim of similar) {
+        if (pool.includes(sim)) {
+          const hanzi = getHanziForTone(sim, chosenTone);
+          if (hanzi && hanzi !== "—" && hanzi !== "——") {
+            distractorSet.add(applyToneToSyllable(sim, chosenTone));
+          }
+        }
+      }
+
+      // === BẪY 5: THANH ĐIỆU NGƯỢC (thanh 1↔4, thanh 2↔3) ===
+      const oppositeTones: Record<number, number> = { 1: 4, 2: 3, 3: 2, 4: 1 };
+      const oppTone = oppositeTones[chosenTone];
+      if (oppTone) {
+        const oppHanzi = getHanziForTone(baseTarget, oppTone);
+        if (oppHanzi && oppHanzi !== "—" && oppHanzi !== "——") {
+          distractorSet.add(applyToneToSyllable(baseTarget, oppTone));
+        }
+      }
+
+      // === BẪY 6: ĐẢO NGƯỢC PHỤ ÂM (VD: ba → ab) ===
+      // (không áp dụng vì tiếng Trung không có)
+
+      // Nếu chưa đủ 3 đáp án nhiễu
+      const remainingPool = pool.filter((s) => s !== baseTarget);
+      let fallbackAttempts = 0;
+      while (distractorSet.size < 3 && remainingPool.length > 0 && fallbackAttempts < 30) {
+        const randBase = remainingPool[Math.floor(Math.random() * remainingPool.length)];
+        const hanzi = getHanziForTone(randBase, chosenTone);
+        if (hanzi && hanzi !== "—" && hanzi !== "——") {
+          const candidate = applyToneToSyllable(randBase, chosenTone);
+          if (!distractorSet.has(candidate)) {
+            distractorSet.add(candidate);
+          }
+        }
+        fallbackAttempts++;
+      }
+
+      // Đảm bảo luôn có 4 đáp án
+      const optionsArray = [targetWithTone, ...Array.from(distractorSet)];
+      while (optionsArray.length < 4) {
+        const randomBase = pool[Math.floor(Math.random() * pool.length)] || "ba";
+        const hanzi = getHanziForTone(randomBase, chosenTone);
+        if (hanzi && hanzi !== "—" && hanzi !== "——") {
+          const candidate = applyToneToSyllable(randomBase, chosenTone);
+          if (!optionsArray.includes(candidate)) {
+            optionsArray.push(candidate);
+          }
+        } else {
+          // Nếu không có chữ Hán, thử âm tiết khác
+          const fallback = pool[Math.floor(Math.random() * pool.length)] || "ma";
+          const candidate = applyToneToSyllable(fallback, chosenTone);
+          if (!optionsArray.includes(candidate)) {
+            optionsArray.push(candidate);
+          }
+        }
+      }
+
+      const options = optionsArray.sort(() => 0.5 - Math.random());
+      const hanzi = getHanziForTone(baseTarget, chosenTone);
+
       generated.push({
         target: targetWithTone,
         base: baseTarget,
-        tone: randomTone,
+        tone: chosenTone,
         options,
         hanzi,
-        meaning: hanzi ? `Chữ ${hanzi}` : undefined,
+        meaning: hanzi ? `Từ vựng Hán ngữ` : undefined,
       });
     }
+
     return generated;
   };
-
   const currentQ = questionList[quizIndex];
 
-  // Timers Effect
+  // Timers Effect: Đếm ngược thời gian suy nghĩ
   useEffect(() => {
     if (!isGameRunning || quizChecked || isQuizFinished) return;
     timerRef.current = setInterval(() => {
@@ -207,6 +459,7 @@ export default function PinyinChartPage() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [isGameRunning, quizIndex, quizChecked, isQuizFinished]);
 
+  // Timers Effect: Đếm ngược thời gian giải thích
   useEffect(() => {
     if (!isGameRunning || !quizChecked || isQuizFinished) return;
     setExplanationTimeLeft(EXPLANATION_TIME);
@@ -229,7 +482,7 @@ export default function PinyinChartPage() {
     setQuizSelected("Hết giờ");
     setQuizHistory((prev) => [
       ...prev,
-      { target: currentQ.target, selected: "Hết giờ (13s)", isCorrect: false, hanzi: currentQ.hanzi, meaning: currentQ.meaning },
+      { target: currentQ.target, selected: `Hết giờ (${THINKING_TIME_LIMIT}s)`, isCorrect: false, hanzi: currentQ.hanzi, meaning: currentQ.meaning },
     ]);
   };
 
@@ -292,7 +545,7 @@ export default function PinyinChartPage() {
           Bảng Ngữ Âm Pinyin & Đấu Trường Luyện Nghe
         </Title>
         <Text type="secondary" style={{ fontSize: 15 }}>
-          Luyện nghe 15 câu: Tự động đọc 2 lần (cách 2s), 13s suy nghĩ và dừng 5s phân tích đáp án chi tiết.
+          {`Luyện nghe ${TOTAL_QUESTIONS} câu từ vựng hỗn hợp: Tự động đọc 2 lần (cách 2.5s), ${THINKING_TIME_LIMIT}s suy nghĩ và dừng ${EXPLANATION_TIME}s phân tích đáp án chi tiết.`}
         </Text>
       </div>
 
@@ -318,7 +571,11 @@ export default function PinyinChartPage() {
           },
           {
             key: "quiz",
-            label: <span><TrophyOutlined /> Đấu Trường Phản Xạ (15 Câu • 13s)</span>,
+            label: (
+              <span>
+                <TrophyOutlined /> Đấu Trường Phản Xạ ({TOTAL_QUESTIONS} Câu • {THINKING_TIME_LIMIT}s)
+              </span>
+            ),
             children: (
               <PinyinQuiz
                 listeningMode={listeningMode}

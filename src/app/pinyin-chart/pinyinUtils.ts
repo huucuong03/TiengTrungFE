@@ -81,34 +81,28 @@ const fallbackSpeech = (text: string) => {
   }
 };
 
-export const playAudio = async (text: string) => {
-  if (!text) return;
-
-  if (currentAudioInstance) {
-    currentAudioInstance.pause();
-    currentAudioInstance.currentTime = 0;
-    currentAudioInstance = null;
+export function playAudio(text: string) {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+    console.warn("Trình duyệt không hỗ trợ Web Speech API");
+    return;
   }
 
-  if (typeof window !== "undefined" && "speechSynthesis" in window) {
-    window.speechSynthesis.cancel();
+  const synth = window.speechSynthesis;
+
+  // 1. Xóa toàn bộ hàng đợi đang bị kẹt trước đó
+  synth.cancel();
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "zh-CN"; // Bắt buộc đặt đúng mã ngôn ngữ Tiếng Trung
+  utterance.rate = 0.9;     // Chỉnh tốc độ chậm lại chút xíu cho dễ nghe (mặc định là 1)
+
+  // 2. Thử tìm giọng đọc tiếng Trung chuẩn nếu có sẵn trên máy
+  const voices = synth.getVoices();
+  const chineseVoice = voices.find(v => v.lang === "zh-CN" || v.lang.includes("zh"));
+  if (chineseVoice) {
+    utterance.voice = chineseVoice;
   }
 
-  // KIỂM TRA: Nếu text chứa chữ Hán thì gọi API, nếu chỉ là Pinyin thì gọi trình duyệt
-  const isChinese = /[\u4e00-\u9fa5]/.test(text);
-
-  if (isChinese) {
-    try {
-      const audioUrl = `https://tiengtrung-7hto.onrender.com/api/tts/speak?text=${encodeURIComponent(text)}`;
-      const audio = new Audio(audioUrl);
-      currentAudioInstance = audio;
-      await audio.play();
-    } catch (err) {
-      fallbackSpeech(text);
-    }
-  } else {
-    // TEXT LÀ PINYIN (vd: á, ǎ): Không gọi API Backend vì API sẽ đọc sai thành thanh 1
-    // Dùng trình duyệt đọc trực tiếp để phát âm chuẩn dấu Pinyin!
-    fallbackSpeech(text);
-  }
-};
+  // 3. Thực hiện phát âm
+  synth.speak(utterance);
+}
