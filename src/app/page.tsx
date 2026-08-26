@@ -32,6 +32,9 @@ interface UserStats {
   masteredWords: number;
   totalScore: number;
   quizzesTaken: number;
+  hanziMastered: number;
+  pinyinMastered: number;
+  meaningMastered: number;
 }
 
 export default function HomePage() {
@@ -43,9 +46,12 @@ export default function HomePage() {
     masteredWords: 0,
     totalScore: 0,
     quizzesTaken: 0,
+    hanziMastered: 0,
+    pinyinMastered: 0,
+    meaningMastered: 0,
   });
 
-useEffect(() => {
+  useEffect(() => {
     const storedUser = localStorage.getItem("username");
     if (storedUser) setUsername(storedUser);
 
@@ -55,21 +61,19 @@ useEffect(() => {
       return;
     }
 
-    // Trỏ thẳng tới URL Backend FastAPI thay vì dùng đường dẫn tương đối
     Promise.all([
       fetch("https://tiengtrung-7hto.onrender.com/api/notebook/words", {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then((res) => (res.ok ? res.json() : []))
         .catch(() => []),
-      fetch("https://tiengtrung-7hto.onrender.com/api/notebook/quiz/daily-stats", { // Hoặc endpoint quiz-logs thực tế của bạn
+      fetch("https://tiengtrung-7hto.onrender.com/api/notebook/quiz/daily-stats", {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then((res) => (res.ok ? res.json() : null))
         .catch(() => null),
     ])
       .then(([wordsData, statsData]) => {
-        // Xử lý dữ liệu linh hoạt tùy theo định dạng trả về từ backend của bạn
         const words = Array.isArray(wordsData) ? wordsData : wordsData?.items || [];
         
         const totalWords = words.length;
@@ -77,8 +81,14 @@ useEffect(() => {
           (w: any) => (w.proficiency || 0) >= 80
         ).length;
 
-        // Lấy điểm tổng và số lượt từ API thống kê nếu có, hoặc mặc định 0
-        const totalScore = statsData?.all_time?.avg_score ? statsData.all_time.avg_score * (statsData.all_time.total_completed || 0) : 0;
+        // ✅ Lấy 3 kỹ năng từ stats
+        const hanziMastered = statsData?.mastery?.hanzi_mastered || 0;
+        const pinyinMastered = statsData?.mastery?.pinyin_mastered || 0;
+        const meaningMastered = statsData?.mastery?.meaning_mastered || 0;
+
+        const totalScore = statsData?.all_time?.avg_score 
+          ? statsData.all_time.avg_score * (statsData.all_time.total_completed || 0) 
+          : 0;
         const quizzesTaken = statsData?.all_time?.total_completed || 0;
 
         setStats({
@@ -86,6 +96,9 @@ useEffect(() => {
           masteredWords,
           totalScore: Math.round(totalScore),
           quizzesTaken,
+          hanziMastered,
+          pinyinMastered,
+          meaningMastered,
         });
       })
       .finally(() => setLoading(false));
@@ -164,79 +177,137 @@ useEffect(() => {
             <Spin />
           </div>
         ) : (
-          <Row gutter={[24, 24]}>
-            <Col xs={12} sm={6}>
-              <Card bordered={false} style={{ background: "#f0f5ff", borderRadius: 12 }}>
-                <Statistic
-                  title={<Text style={{ color: "#595959" }}>Từ đã lưu</Text>}
-                  value={stats.totalWords}
-                  suffix="từ"
-                  prefix={<BookOutlined style={{ color: "#1677ff" }} />}
-                  valueStyle={{ fontWeight: 800, color: "#1677ff" }}
-                />
-              </Card>
-            </Col>
+          <>
+            {/* Hàng 1: 4 chỉ số chính */}
+            <Row gutter={[24, 24]}>
+              <Col xs={12} sm={6}>
+                <Card bordered={false} style={{ background: "#f0f5ff", borderRadius: 12 }}>
+                  <Statistic
+                    title={<Text style={{ color: "#595959" }}>Từ đã lưu</Text>}
+                    value={stats.totalWords}
+                    suffix="từ"
+                    prefix={<BookOutlined style={{ color: "#1677ff" }} />}
+                    valueStyle={{ fontWeight: 800, color: "#1677ff" }}
+                  />
+                </Card>
+              </Col>
 
-            <Col xs={12} sm={6}>
-              <Card bordered={false} style={{ background: "#f6ffed", borderRadius: 12 }}>
-                <Statistic
-                  title={<Text style={{ color: "#595959" }}>Đã thành thạo</Text>}
-                  value={stats.masteredWords}
-                  suffix="từ"
-                  prefix={<CheckCircleOutlined style={{ color: "#52c41a" }} />}
-                  valueStyle={{ fontWeight: 800, color: "#52c41a" }}
-                />
-              </Card>
-            </Col>
+              <Col xs={12} sm={6}>
+                <Card bordered={false} style={{ background: "#fffbe6", borderRadius: 12 }}>
+                  <Statistic
+                    title={<Text style={{ color: "#595959" }}>Tổng điểm</Text>}
+                    value={stats.totalScore}
+                    prefix={<TrophyOutlined style={{ color: "#faad14" }} />}
+                    valueStyle={{ fontWeight: 800, color: "#d48806" }}
+                  />
+                </Card>
+              </Col>
 
-            <Col xs={12} sm={6}>
-              <Card bordered={false} style={{ background: "#fffbe6", borderRadius: 12 }}>
-                <Statistic
-                  title={<Text style={{ color: "#595959" }}>Tổng điểm bài thi</Text>}
-                  value={stats.totalScore}
-                  prefix={<TrophyOutlined style={{ color: "#faad14" }} />}
-                  valueStyle={{ fontWeight: 800, color: "#d48806" }}
-                />
-              </Card>
-            </Col>
+              <Col xs={12} sm={6}>
+                <Card bordered={false} style={{ background: "#f9f0ff", borderRadius: 12 }}>
+                  <Statistic
+                    title={<Text style={{ color: "#595959" }}>Lượt làm Quiz</Text>}
+                    value={stats.quizzesTaken}
+                    suffix="lượt"
+                    prefix={<ReadOutlined style={{ color: "#722ed1" }} />}
+                    valueStyle={{ fontWeight: 800, color: "#722ed1" }}
+                  />
+                </Card>
+              </Col>
 
-            <Col xs={12} sm={6}>
-              <Card bordered={false} style={{ background: "#f9f0ff", borderRadius: 12 }}>
-                <Statistic
-                  title={<Text style={{ color: "#595959" }}>Lượt làm Quiz</Text>}
-                  value={stats.quizzesTaken}
-                  suffix="lượt"
-                  prefix={<ReadOutlined style={{ color: "#722ed1" }} />}
-                  valueStyle={{ fontWeight: 800, color: "#722ed1" }}
-                />
-              </Card>
-            </Col>
+              <Col xs={12} sm={6}>
+                <Card bordered={false} style={{ background: "#f6ffed", borderRadius: 12 }}>
+                  <Statistic
+                    title={<Text style={{ color: "#595959" }}>Từ thành thạo</Text>}
+                    value={stats.masteredWords}
+                    suffix="từ"
+                    prefix={<CheckCircleOutlined style={{ color: "#52c41a" }} />}
+                    valueStyle={{ fontWeight: 800, color: "#52c41a" }}
+                  />
+                </Card>
+              </Col>
+            </Row>
 
-            <Col xs={24}>
-              <div
-                style={{
-                  background: "#fafafa",
-                  padding: "16px 20px",
-                  borderRadius: 12,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  flexWrap: "wrap",
-                  gap: 12,
-                }}
-              >
-                <div>
-                  <Text strong>Tỷ lệ ghi nhớ từ vựng:</Text>
-                  <Text type="secondary" style={{ marginLeft: 8 }}>
-                    {stats.masteredWords}/{stats.totalWords} từ đạt độ thành thạo cao
-                  </Text>
+            {/* ✅ Hàng 2: 3 kỹ năng thành thạo */}
+            <Row gutter={[24, 24]} style={{ marginTop: 16 }}>
+              <Col xs={24} sm={8}>
+                <Card bordered={false} style={{ background: "#f0f5ff", borderRadius: 12 }}>
+                  <Statistic
+                    title={<Text style={{ color: "#1d39c4" }}>🀄 Nhận diện chữ</Text>}
+                    value={stats.hanziMastered}
+                    suffix="từ"
+                    valueStyle={{ fontWeight: 800, color: "#2f54eb" }}
+                  />
+                  <Progress 
+                    percent={stats.totalWords > 0 ? Math.round((stats.hanziMastered / stats.totalWords) * 100) : 0} 
+                    size="small" 
+                    strokeColor="#1677ff"
+                    style={{ marginTop: 8 }}
+                  />
+                </Card>
+              </Col>
+              <Col xs={24} sm={8}>
+                <Card bordered={false} style={{ background: "#f6ffed", borderRadius: 12 }}>
+                  <Statistic
+                    title={<Text style={{ color: "#389e0d" }}>🔤 Phát âm</Text>}
+                    value={stats.pinyinMastered}
+                    suffix="từ"
+                    valueStyle={{ fontWeight: 800, color: "#52c41a" }}
+                  />
+                  <Progress 
+                    percent={stats.totalWords > 0 ? Math.round((stats.pinyinMastered / stats.totalWords) * 100) : 0} 
+                    size="small" 
+                    strokeColor="#52c41a"
+                    style={{ marginTop: 8 }}
+                  />
+                </Card>
+              </Col>
+              <Col xs={24} sm={8}>
+                <Card bordered={false} style={{ background: "#fffbe6", borderRadius: 12 }}>
+                  <Statistic
+                    title={<Text style={{ color: "#d46b08" }}>📖 Hiểu nghĩa</Text>}
+                    value={stats.meaningMastered}
+                    suffix="từ"
+                    valueStyle={{ fontWeight: 800, color: "#fa8c16" }}
+                  />
+                  <Progress 
+                    percent={stats.totalWords > 0 ? Math.round((stats.meaningMastered / stats.totalWords) * 100) : 0} 
+                    size="small" 
+                    strokeColor="#faad14"
+                    style={{ marginTop: 8 }}
+                  />
+                </Card>
+              </Col>
+            </Row>
+
+            {/* Tỷ lệ ghi nhớ */}
+            <Row style={{ marginTop: 16 }}>
+              <Col xs={24}>
+                <div
+                  style={{
+                    background: "#fafafa",
+                    padding: "16px 20px",
+                    borderRadius: 12,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: 12,
+                  }}
+                >
+                  <div>
+                    <Text strong>Tỷ lệ ghi nhớ từ vựng:</Text>
+                    <Text type="secondary" style={{ marginLeft: 8 }}>
+                      {stats.masteredWords}/{stats.totalWords} từ đạt độ thành thạo cao
+                    </Text>
+                  </div>
+                  <div style={{ width: 240 }}>
+                    <Progress percent={masteryPercentage} status="active" />
+                  </div>
                 </div>
-                <div style={{ width: 240 }}>
-                  <Progress percent={masteryPercentage} status="active" />
-                </div>
-              </div>
-            </Col>
-          </Row>
+              </Col>
+            </Row>
+          </>
         )}
       </Card>
 
