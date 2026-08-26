@@ -16,7 +16,8 @@ interface Game4Props {
   onFinishGame: (finalScore: number, finalCorrect: number) => void;
   playAudio: (text: string) => void;
   updateScoreAndCorrect: (points: number, isCorrect: boolean) => void;
-  refreshGame4?: () => void; // 🆕 Thêm prop để refresh
+  refreshGame4?: () => Promise<void>; // 🆕 Thêm optional
+  loading?: boolean; // 🆕 Thêm optional
 }
 
 export default function Game4SentenceBuilder({

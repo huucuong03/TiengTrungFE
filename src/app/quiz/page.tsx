@@ -123,8 +123,8 @@ export default function QuizPage() {
       
       if (data.success && data.game4_sentence) {
         setGame4Data(data.game4_sentence);
-        // Cập nhật sessionData để component Game4 nhận được dữ liệu mới
-        setSessionData(prev => ({
+        // ✅ Sửa lỗi: thêm type cho prev
+        setSessionData((prev: any) => ({
           ...prev,
           game4_sentence: data.game4_sentence
         }));
@@ -154,7 +154,8 @@ export default function QuizPage() {
       
       if (data.success && data.game4_sentence) {
         setGame4Data(data.game4_sentence);
-        setSessionData(prev => ({
+        // ✅ Sửa lỗi: thêm type cho prev
+        setSessionData((prev: any) => ({
           ...prev,
           game4_sentence: data.game4_sentence
         }));
@@ -418,7 +419,7 @@ export default function QuizPage() {
               <Button type="primary" size="large" block icon={<PlayCircleOutlined />} style={{ marginTop: 16, borderRadius: 8, background: "#fa541c" }}>Bắt đầu chơi</Button>
             </Card>
 
-            {/* Game 4 - 🆕 Có thông báo về AI */}
+            {/* Game 4 */}
             <Card hoverable={isGame4Unlocked} onClick={() => startGame("game4")} style={{ borderRadius: 16, border: "1px solid #d3adf7", background: "linear-gradient(135deg, #f9f0ff 0%, #ffffff 100%)" }}>
               <Tag color="purple">TRÒ CHƠI 4 • AI</Tag>
               <Title level={4} style={{ margin: "8px 0 4px 0", fontWeight: 700 }}>📝 Sắp Xếp Từ Ghép Câu</Title>
@@ -533,7 +534,7 @@ export default function QuizPage() {
             />
           )}
 
-          {/* Game 4 - 🆕 Truyền thêm props loading và refresh */}
+          {/* Game 4 */}
           {gameMode === "game4" && sessionData && (
             <Game4SentenceBuilder
               sessionData={sessionData}
@@ -645,7 +646,7 @@ export default function QuizPage() {
               <Button type="primary" key="menu" size="large" icon={<ReloadOutlined />} onClick={() => {
                 fetchSession(); 
                 setGameMode("menu");
-                setGame4Data(null); // Reset Game 4 data
+                setGame4Data(null);
               }} style={{ borderRadius: 8 }}>
                 Về Menu chọn bài khác
               </Button>,
