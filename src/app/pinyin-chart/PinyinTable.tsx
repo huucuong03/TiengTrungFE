@@ -5,6 +5,7 @@ import { Card, Typography, Table, Button, Radio, Space, Tag } from "antd";
 import { BulbOutlined } from "@ant-design/icons";
 import { PinyinDataState } from "./types";
 import { applyToneToSyllable } from "./pinyinUtils";
+import { TONE_HANZI_MAPPING } from "./pinyinData";
 
 const { Text } = Typography;
 
@@ -72,7 +73,7 @@ export default function PinyinTable({
       width: 80,
       render: (text: string) => (
         <div
-          onClick={() => playSound(text, 1)}
+          onClick={() => playSound(text, selectedTone)}
           title={`Bấm để nghe Thanh mẫu "${text}"`}
           style={{ cursor: "pointer", fontWeight: 800, fontSize: 16, color: "#1677ff" }}
         >
@@ -114,10 +115,24 @@ export default function PinyinTable({
         align: "center",
         width: 62,
         render: (value: string) => {
-          if (!value) return <span style={{ color: "#e8e8e8" }}>—</span>;
+          // ✅ Nếu không có value → hiển thị dấu gạch ngang
+          if (!value) {
+            return <span style={{ color: "#d9d9d9", fontSize: 12 }}>−</span>;
+          }
+
+          // ✅ KIỂM TRA: Nếu mapping có "——" cho tone này → hiển thị dấu gạch ngang
+          const mapping = TONE_HANZI_MAPPING[value];
+          if (mapping && selectedTone > 0 && mapping[selectedTone - 1] === "——") {
+            return <span style={{ color: "#d9d9d9", fontSize: 12 }}>−</span>;
+          }
+
+          // ✅ Luôn hiển thị PINYIN CÓ DẤU
+          let displayValue = value;
+          if (selectedTone > 0) {
+            displayValue = applyToneToSyllable(value, selectedTone);
+          }
+
           const isRed = data.special_red_syllables.includes(value);
-          const displayValue =
-            selectedTone > 0 ? applyToneToSyllable(value, selectedTone) : value;
 
           return (
             <Button
@@ -190,6 +205,7 @@ export default function PinyinTable({
         <Tag color="orange">Ô cam trên đầu: Bấm để nghe Vận mẫu theo thanh</Tag>
         <Tag color="blue">Cột xanh: Bấm nghe Thanh mẫu</Tag>
         <Tag color="red">Chữ màu đỏ: Âm biến điệu (j, q, x, y + ü)</Tag>
+        <Tag color="default">Dấu − : Không có âm tiết</Tag>
       </div>
 
       <Table
