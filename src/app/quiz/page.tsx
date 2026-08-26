@@ -39,7 +39,6 @@ import GameCharacterPractice from "@/components/GameCharacterPractice";
 
 const { Title, Text } = Typography;
 
-// ✅ THÊM game7 và game8 vào type
 type GameMode =
   | "menu"
   | "game1"
@@ -55,6 +54,8 @@ type GameMode =
 export default function QuizPage() {
   const [loading, setLoading] = useState(true);
   const [sessionData, setSessionData] = useState<any>(null);
+  const [game4Data, setGame4Data] = useState<any>(null);
+  const [loadingGame4, setLoadingGame4] = useState(false);
   const [stats, setStats] = useState<any>(null);
   const [gameMode, setGameMode] = useState<GameMode>("menu");
   const [score, setScore] = useState(0);
@@ -105,6 +106,70 @@ export default function QuizPage() {
     }
   };
 
+  // 🆕 Hàm fetch riêng cho Game 4
+  const fetchGame4Data = async () => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+    if (!token) return;
+
+    // Nếu đã có dữ liệu Game 4, không gọi lại
+    if (game4Data) return;
+
+    setLoadingGame4(true);
+    try {
+      const res = await fetch("https://tiengtrung-7hto.onrender.com/api/notebook/quiz/ai-sentences", {
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      
+      if (data.success && data.game4_sentence) {
+        setGame4Data(data.game4_sentence);
+        // Cập nhật sessionData để component Game4 nhận được dữ liệu mới
+        setSessionData(prev => ({
+          ...prev,
+          game4_sentence: data.game4_sentence
+        }));
+        message.success("✨ Đã tạo câu mới từ AI!");
+      } else {
+        message.warning("Không thể tạo câu mới, sử dụng câu mẫu");
+      }
+    } catch (error) {
+      console.error("Lỗi tải Game 4:", error);
+      message.error("Lỗi khi tạo câu từ AI");
+    } finally {
+      setLoadingGame4(false);
+    }
+  };
+
+  // 🆕 Hàm refresh Game 4 (gọi lại API)
+  const refreshGame4 = async () => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+    if (!token) return;
+
+    setLoadingGame4(true);
+    try {
+      const res = await fetch("https://tiengtrung-7hto.onrender.com/api/notebook/quiz/ai-sentences", {
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      
+      if (data.success && data.game4_sentence) {
+        setGame4Data(data.game4_sentence);
+        setSessionData(prev => ({
+          ...prev,
+          game4_sentence: data.game4_sentence
+        }));
+        message.success("🔄 Đã tạo câu mới!");
+      } else {
+        message.warning("Không thể tạo câu mới");
+      }
+    } catch (error) {
+      console.error("Lỗi refresh Game 4:", error);
+      message.error("Không thể tạo câu mới");
+    } finally {
+      setLoadingGame4(false);
+    }
+  };
+
   useEffect(() => {
     fetchSession();
     fetchStats();
@@ -115,7 +180,7 @@ export default function QuizPage() {
   const isGame3Unlocked = masteredCount >= 0;
   const isGame4Unlocked = masteredCount >= 0;
 
-  const startGame = (mode: GameMode) => {
+  const startGame = async (mode: GameMode) => {
     setGameMode(mode);
     setScore(0);
     setCorrectCount(0);
@@ -124,13 +189,17 @@ export default function QuizPage() {
       setG5Index(0);
       setG5DoneCurrent(false);
     }
+
+    // 🆕 Nếu vào Game 4, gọi API tạo câu
+    if (mode === "game4") {
+      await fetchGame4Data();
+    }
   };
 
   const submitFinalResult = async (finalScore: number, finalCorrect: number) => {
     const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
     if (!token) return;
 
-    // Lấy danh sách ID các từ vựng của phiên hiện tại từ sessionData
     const wordIds = sessionData?.session_word_ids || [];
 
     try {
@@ -142,10 +211,10 @@ export default function QuizPage() {
           correct_count: finalCorrect, 
           total_words: wordIds.length || 15, 
           game_mode: gameMode,
-          word_ids: wordIds // 👈 Bổ sung mảng ID từ vựng vào đây để tăng điểm thành thạo!
+          word_ids: wordIds
         }),
       });
-      fetchStats(); // Tải lại thống kê ngay sau khi submit thành công
+      fetchStats();
       message.success("Đã cập nhật điểm thành thạo cho từ vựng!");
     } catch (e) {
       console.error(e);
@@ -236,7 +305,6 @@ export default function QuizPage() {
 
           {stats && (
             <>
-              {/* Hàng 1: Mục tiêu ngày + ĐTB + Tổng từ */}
               <Row gutter={[16, 16]}>
                 <Col xs={24} sm={8}>
                   <Card style={{ borderRadius: 14, border: "1px solid #d9f7be", background: "linear-gradient(135deg, #f6ffed 0%, #ffffff 100%)" }}>
@@ -275,7 +343,6 @@ export default function QuizPage() {
                 </Col>
               </Row>
 
-              {/* Hàng 2: 3 kỹ năng thành thạo */}
               <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
                 <Col xs={24} sm={8}>
                   <Card style={{ borderRadius: 14, border: "1px solid #d6e4ff", background: "linear-gradient(135deg, #f0f5ff 0%, #ffffff 100%)" }}>
@@ -329,61 +396,7 @@ export default function QuizPage() {
             </>
           )}
 
-          {/* ✅ THÊM: 3 kỹ năng thành thạo */}
-          {stats && (
-            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-              <Col xs={24} sm={8}>
-                <Card style={{ borderRadius: 14, border: "1px solid #d6e4ff", background: "linear-gradient(135deg, #f0f5ff 0%, #ffffff 100%)" }}>
-                  <Statistic
-                    title={<span style={{ fontWeight: 600, color: "#1d39c4" }}>🀄 Nhận diện chữ</span>}
-                    value={stats?.mastery?.hanzi_mastered || 0}
-                    suffix="từ"
-                    styles={{ content: { color: "#2f54eb", fontWeight: 800 } }}
-                  />
-                  <Progress
-                    percent={stats?.mastery?.total_words > 0 ? Math.round((stats.mastery.hanzi_mastered / stats.mastery.total_words) * 100) : 0}
-                    size="small"
-                    strokeColor="#1677ff"
-                    style={{ marginTop: 8 }}
-                  />
-                </Card>
-              </Col>
-              <Col xs={24} sm={8}>
-                <Card style={{ borderRadius: 14, border: "1px solid #d9f7be", background: "linear-gradient(135deg, #f6ffed 0%, #ffffff 100%)" }}>
-                  <Statistic
-                    title={<span style={{ fontWeight: 600, color: "#389e0d" }}>🔤 Phát âm</span>}
-                    value={stats?.mastery?.pinyin_mastered || 0}
-                    suffix="từ"
-                    styles={{ content: { color: "#52c41a", fontWeight: 800 } }}
-                  />
-                  <Progress
-                    percent={stats?.mastery?.total_words > 0 ? Math.round((stats.mastery.pinyin_mastered / stats.mastery.total_words) * 100) : 0}
-                    size="small"
-                    strokeColor="#52c41a"
-                    style={{ marginTop: 8 }}
-                  />
-                </Card>
-              </Col>
-              <Col xs={24} sm={8}>
-                <Card style={{ borderRadius: 14, border: "1px solid #ffe58f", background: "linear-gradient(135deg, #fffbe6 0%, #ffffff 100%)" }}>
-                  <Statistic
-                    title={<span style={{ fontWeight: 600, color: "#d46b08" }}>📖 Hiểu nghĩa</span>}
-                    value={stats?.mastery?.meaning_mastered || 0}
-                    suffix="từ"
-                    styles={{ content: { color: "#fa8c16", fontWeight: 800 } }}
-                  />
-                  <Progress
-                    percent={stats?.mastery?.total_words > 0 ? Math.round((stats.mastery.meaning_mastered / stats.mastery.total_words) * 100) : 0}
-                    size="small"
-                    strokeColor="#faad14"
-                    style={{ marginTop: 8 }}
-                  />
-                </Card>
-              </Col>
-            </Row>
-          )}
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20, marginTop: 8 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20, marginTop: 8 }}>
             {/* Game 1 */}
             <Card hoverable onClick={() => startGame("game1")} style={{ borderRadius: 16, border: "1px solid #bae0ff", background: "linear-gradient(135deg, #f0f5ff 0%, #ffffff 100%)" }}>
               <Tag color="blue">TRÒ CHƠI 1</Tag>
@@ -405,11 +418,16 @@ export default function QuizPage() {
               <Button type="primary" size="large" block icon={<PlayCircleOutlined />} style={{ marginTop: 16, borderRadius: 8, background: "#fa541c" }}>Bắt đầu chơi</Button>
             </Card>
 
-            {/* Game 4 */}
-            <Card hoverable={isGame4Unlocked} onClick={() => startGame("game4")} style={{ borderRadius: 16, border: "1px solid #d3adf7" }}>
-              <Tag color="purple">TRÒ CHƠI 4</Tag>
+            {/* Game 4 - 🆕 Có thông báo về AI */}
+            <Card hoverable={isGame4Unlocked} onClick={() => startGame("game4")} style={{ borderRadius: 16, border: "1px solid #d3adf7", background: "linear-gradient(135deg, #f9f0ff 0%, #ffffff 100%)" }}>
+              <Tag color="purple">TRÒ CHƠI 4 • AI</Tag>
               <Title level={4} style={{ margin: "8px 0 4px 0", fontWeight: 700 }}>📝 Sắp Xếp Từ Ghép Câu</Title>
-              <Button type="primary" size="large" block icon={<PlayCircleOutlined />} style={{ marginTop: 16, borderRadius: 8, background: "#722ed1" }}>Bắt đầu chơi</Button>
+              <Text type="secondary" style={{ fontSize: 13, display: "block", marginBottom: 8 }}>
+                🤖 Câu được tạo từ AI dựa trên từ vựng của bạn
+              </Text>
+              <Button type="primary" size="large" block icon={<PlayCircleOutlined />} style={{ marginTop: 16, borderRadius: 8, background: "#722ed1" }}>
+                Bắt đầu chơi
+              </Button>
             </Card>
 
             {/* Game 6 - Tower */}
@@ -426,7 +444,7 @@ export default function QuizPage() {
               <Button type="primary" size="large" icon={<EditOutlined />} style={{ marginTop: 16, borderRadius: 8, background: "#faad14", borderColor: "#faad14" }}>Bắt đầu viết</Button>
             </Card>
 
-            {/* ✅ GAME 7 - Luyện Câu */}
+            {/* Game 7 - Luyện Câu */}
             <Card hoverable onClick={() => startGame("game7")} style={{ borderRadius: 16, border: "1px solid #b7eb8f", background: "linear-gradient(135deg, #f6ffed 0%, #ffffff 100%)" }}>
               <Tag color="green">TRÒ CHƠI 7 • MỚI</Tag>
               <Title level={4} style={{ margin: "8px 0 4px 0", fontWeight: 700 }}><FileTextOutlined /> Luyện Câu - Điền Từ</Title>
@@ -436,7 +454,7 @@ export default function QuizPage() {
               <Button type="primary" size="large" block icon={<PlayCircleOutlined />} style={{ marginTop: 16, borderRadius: 8, background: "#52c41a" }}>Bắt đầu</Button>
             </Card>
 
-            {/* ✅ GAME 8 - Luyện Chữ */}
+            {/* Game 8 - Luyện Chữ */}
             <Card hoverable onClick={() => startGame("game8")} style={{ borderRadius: 16, border: "1px solid #ffd591", background: "linear-gradient(135deg, #fff7e6 0%, #ffffff 100%)" }}>
               <Tag color="orange">TRÒ CHƠI 8 • MỚI</Tag>
               <Title level={4} style={{ margin: "8px 0 4px 0", fontWeight: 700 }}><FontSizeOutlined /> Luyện Chữ Hán</Title>
@@ -460,7 +478,7 @@ export default function QuizPage() {
             </Tag>
           </div>
 
-          {/* ===== GAME 1 ===== */}
+          {/* Game 1 */}
           {gameMode === "game1" && sessionData && (
             <Game1Flashcard
               sessionData={sessionData}
@@ -479,7 +497,7 @@ export default function QuizPage() {
             />
           )}
 
-          {/* ===== GAME 2 ===== */}
+          {/* Game 2 */}
           {gameMode === "game2" && sessionData && (
             <Game2MemoryMatch
               sessionData={sessionData}
@@ -497,7 +515,7 @@ export default function QuizPage() {
             />
           )}
 
-          {/* ===== GAME 3 ===== */}
+          {/* Game 3 */}
           {gameMode === "game3" && sessionData && (
             <Game3MatchColumns
               sessionData={sessionData}
@@ -515,7 +533,7 @@ export default function QuizPage() {
             />
           )}
 
-          {/* ===== GAME 4 ===== */}
+          {/* Game 4 - 🆕 Truyền thêm props loading và refresh */}
           {gameMode === "game4" && sessionData && (
             <Game4SentenceBuilder
               sessionData={sessionData}
@@ -530,10 +548,12 @@ export default function QuizPage() {
                 setScore((prev) => prev + pts);
                 if (correct) setCorrectCount((prev) => prev + 1);
               }}
+              refreshGame4={refreshGame4}
+              loading={loadingGame4}
             />
           )}
 
-          {/* ===== GAME 6 - TOWER ===== */}
+          {/* Game 6 - Tower */}
           {gameMode === "game6" && sessionData && (
             <GameVocabularyTower
               sessionData={sessionData}
@@ -547,7 +567,7 @@ export default function QuizPage() {
             />
           )}
 
-          {/* ===== GAME 5 - WRITING ===== */}
+          {/* Game 5 - Writing */}
           {gameMode === "game5" && currentG5Task && (
             <Card style={{ borderRadius: 16, boxShadow: "0 4px 16px rgba(0,0,0,0.04)" }}>
               <div style={{ textAlign: "center", marginBottom: 20 }}>
@@ -577,7 +597,7 @@ export default function QuizPage() {
             </Card>
           )}
 
-          {/* ===== GAME 7 - LUYỆN CÂU ===== */}
+          {/* Game 7 - Luyện Câu */}
           {gameMode === "game7" && (
             <GameSentencePractice
               sessionData={sessionData}
@@ -595,7 +615,7 @@ export default function QuizPage() {
             />
           )}
 
-          {/* ===== GAME 8 - LUYỆN CHỮ ===== */}
+          {/* Game 8 - Luyện Chữ */}
           {gameMode === "game8" && (
             <GameCharacterPractice
               sessionData={sessionData}
@@ -623,7 +643,9 @@ export default function QuizPage() {
             subTitle={<div style={{ fontSize: 16, marginTop: 8 }}>Điểm số đạt được: <strong style={{ color: "#fa8c16", fontSize: 20 }}>{score} điểm</strong></div>}
             extra={[
               <Button type="primary" key="menu" size="large" icon={<ReloadOutlined />} onClick={() => {
-                fetchSession(); setGameMode("menu");
+                fetchSession(); 
+                setGameMode("menu");
+                setGame4Data(null); // Reset Game 4 data
               }} style={{ borderRadius: 8 }}>
                 Về Menu chọn bài khác
               </Button>,

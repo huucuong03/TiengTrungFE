@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, Button, Typography, Space, message } from "antd";
+import { Card, Button, Typography, Space, message, Spin } from "antd";
 import { OrderedListOutlined, SoundOutlined, ReloadOutlined, ArrowRightOutlined } from "@ant-design/icons";
 
 const { Title, Text } = Typography;
@@ -16,6 +16,7 @@ interface Game4Props {
   onFinishGame: (finalScore: number, finalCorrect: number) => void;
   playAudio: (text: string) => void;
   updateScoreAndCorrect: (points: number, isCorrect: boolean) => void;
+  refreshGame4?: () => void; // 🆕 Thêm prop để refresh
 }
 
 export default function Game4SentenceBuilder({
@@ -23,6 +24,7 @@ export default function Game4SentenceBuilder({
   onFinishGame,
   playAudio,
   updateScoreAndCorrect,
+  refreshGame4,
 }: Game4Props) {
   const [g4Index, setG4Index] = useState(0);
   const [g4UserSeq, setG4UserSeq] = useState<SentenceWordItem[]>([]);
@@ -31,10 +33,12 @@ export default function Game4SentenceBuilder({
   const [g4IsCorrect, setG4IsCorrect] = useState(false);
   const [localScore, setLocalScore] = useState(0);
   const [localCorrect, setLocalCorrect] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   const currentG4Task = sessionData?.game4_sentence?.[g4Index];
   const totalSentences = sessionData?.game4_sentence?.length || 1;
 
+  // Reset khi có dữ liệu mới
   useEffect(() => {
     if (currentG4Task?.shuffled_words) {
       setG4Available([...currentG4Task.shuffled_words]);
@@ -43,6 +47,17 @@ export default function Game4SentenceBuilder({
       setG4IsCorrect(false);
     }
   }, [g4Index, sessionData]);
+
+  // 🆕 Hàm làm mới câu (gọi lại API)
+  const handleRefreshSentences = async () => {
+    if (refreshGame4) {
+      setLoading(true);
+      await refreshGame4();
+      setG4Index(0); // Reset về câu đầu tiên
+      setLoading(false);
+      message.success("Đã tạo câu mới!");
+    }
+  };
 
   const handlePickG4Word = (wordItem: SentenceWordItem, index: number) => {
     if (g4Checked) return;
@@ -95,7 +110,15 @@ export default function Game4SentenceBuilder({
     }
   };
 
-  if (!currentG4Task) return null;
+  if (!currentG4Task || loading) {
+    return (
+      <Card style={{ borderRadius: 20, boxShadow: "0 8px 24px rgba(0,0,0,0.06)" }}>
+        <div style={{ textAlign: "center", padding: 50 }}>
+          <Spin tip="Đang tạo câu từ AI..." />
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card style={{ borderRadius: 20, boxShadow: "0 8px 24px rgba(0,0,0,0.06)" }}>
@@ -104,6 +127,18 @@ export default function Game4SentenceBuilder({
           <OrderedListOutlined style={{ color: "#722ed1", marginRight: 8 }} />
           Sắp Xếp Câu Hoàn Chỉnh ({g4Index + 1} / {totalSentences})
         </Title>
+        
+        {/* 🆕 Nút làm mới câu */}
+        <Button 
+          size="small" 
+          icon={<ReloadOutlined />} 
+          onClick={handleRefreshSentences}
+          style={{ marginTop: 8 }}
+          disabled={g4Checked}
+        >
+          Tạo câu mới
+        </Button>
+
         <div style={{ marginTop: 10, padding: "10px 20px", background: "#f0f2f5", borderRadius: 12, display: "inline-block" }}>
           <Text style={{ fontSize: 15 }}>
             Ý nghĩa: <strong style={{ color: "#1f1f1f" }}>"{currentG4Task.vi}"</strong>
