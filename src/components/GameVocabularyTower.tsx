@@ -11,9 +11,9 @@ interface TowerWordItem {
   hanzi: string;
   pinyin: string;
   meaning: string;
-  x: number; 
-  y: number; 
-  speed: number; 
+  x: number;
+  y: number;
+  speed: number;
 }
 
 interface TowerGameProps {
@@ -34,8 +34,6 @@ export default function GameVocabularyTower({
   const [currentQuestion, setCurrentQuestion] = useState<any>(null);
   const [options, setOptions] = useState<string[]>([]);
   const [correctCount, setCorrectCount] = useState(0);
-  
-  // Thêm trạng thái lựa chọn chế độ: "meaning" (chọn nghĩa) hoặc "pinyin" (chọn pinyin)
   const [towerMode, setTowerMode] = useState<"meaning" | "pinyin">("meaning");
 
   const requestRef = useRef<number | null>(null);
@@ -57,28 +55,32 @@ export default function GameVocabularyTower({
 
   const spawnNewTarget = (list: any[]) => {
     if (!list || list.length === 0) return;
-    
-    const target = list[Math.floor(Math.random() * list.length)];
-    const wordData = target.word || { hanzi: target.text, pinyin: target.pinyin || "pinyin", meaning: target.meaning || "nghĩa" };
-    setCurrentQuestion(wordData);
-    playAudio(wordData.hanzi);
 
-    // Tạo 4 lựa chọn ở thanh dưới dựa theo chế độ (Nghĩa hoặc Pinyin)
+    const target = list[Math.floor(Math.random() * list.length)];
+    const wordData = target.word || {
+      id: target.id || Math.random(),
+      hanzi: target.text || target.hanzi || "?",
+      pinyin: target.pinyin || "?",
+      meaning: target.meaning || "?",
+    };
+    setCurrentQuestion(wordData);
+    if (wordData.hanzi && wordData.hanzi !== "?") playAudio(wordData.hanzi);
+
     const isMeaningMode = towerMode === "meaning";
     const targetValue = isMeaningMode ? wordData.meaning : wordData.pinyin;
 
     const distractors = list
       .filter((item: any) => {
-        const itemWord = item.word || { hanzi: item.text, pinyin: item.pinyin, meaning: item.meaning };
-        const val = isMeaningMode ? itemWord.meaning : itemWord.pinyin;
-        return itemWord.id !== wordData.id && val !== targetValue;
+        const itemWord = item.word || { id: item.id, hanzi: item.text, pinyin: item.pinyin, meaning: item.meaning };
+        return itemWord.id !== wordData.id;
       })
       .slice(0, 3)
       .map((item: any) => {
-        const itemWord = item.word || { hanzi: item.text, pinyin: item.pinyin, meaning: item.meaning };
+        const itemWord = item.word || { id: item.id, hanzi: item.text, pinyin: item.pinyin, meaning: item.meaning };
         return isMeaningMode ? itemWord.meaning : itemWord.pinyin;
-      });
-    
+      })
+      .filter((val: string) => val && val !== targetValue);
+
     const allOpts = [targetValue, ...distractors].sort(() => 0.5 - Math.random());
     setOptions(allOpts);
 
@@ -168,7 +170,7 @@ export default function GameVocabularyTower({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 10 }}>
         <Title level={4} style={{ margin: 0, fontWeight: 800 }}>
           <ThunderboltOutlined style={{ color: "#fa541c", marginRight: 6 }} />
-          Tháp Từ Vựng (Vocabulary Tower)
+          Tháp Từ Vựng
         </Title>
 
         {!isPlaying && (
@@ -176,7 +178,7 @@ export default function GameVocabularyTower({
             value={towerMode}
             onChange={(val: any) => setTowerMode(val)}
             options={[
-              { label: "📖 Chọn Nghĩa Việt", value: "meaning" },
+              { label: "📖 Chọn Nghĩa", value: "meaning" },
               { label: "🔤 Chọn Pinyin", value: "pinyin" },
             ]}
           />
@@ -192,38 +194,55 @@ export default function GameVocabularyTower({
         <div style={{ padding: "30px 0" }}>
           <Title level={3}>Bảo vệ Tháp Từ Vựng!</Title>
           <Text type="secondary" style={{ display: "block", marginBottom: 24 }}>
-            Chữ Hán sẽ rơi từ đỉnh tháp xuống. Hãy nhìn mặt chữ và bấm chọn đúng <strong>{towerMode === "meaning" ? "Nghĩa tiếng Việt" : "Pinyin"}</strong> tương ứng trước khi chạm đáy!
+            Chữ Hán sẽ rơi từ đỉnh tháp xuống. Hãy chọn đúng{" "}
+            <strong>{towerMode === "meaning" ? "Nghĩa" : "Pinyin"}</strong> trước khi chạm đáy!
           </Text>
-          <Button type="primary" size="large" onClick={startGame} style={{ borderRadius: 8, background: "#fa541c", height: 48, padding: "0 32px", fontWeight: 700 }}>
+          <Button type="primary" size="large" onClick={startGame}
+            style={{ borderRadius: 8, background: "#fa541c", height: 48, padding: "0 32px", fontWeight: 700 }}>
             Bắt đầu thủ thành
           </Button>
         </div>
       ) : (
         <div>
-          {/* KHUNG THÁP RƠI */}
-          <div style={{ position: "relative", height: 300, background: "linear-gradient(180deg, #1f1f1f 0%, #141414 100%)", borderRadius: 16, overflow: "hidden", border: "2px solid #303030", marginBottom: 20 }}>
+          <div style={{
+            position: "relative", height: 300,
+            background: "linear-gradient(180deg, #1f1f1f 0%, #141414 100%)",
+            borderRadius: 16, overflow: "hidden", border: "2px solid #303030",
+            marginBottom: 20
+          }}>
             <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 6, background: "#ff4d4f" }} />
             {fallingWords.map((word) => (
-              <div key={word.id} style={{ position: "absolute", left: `${word.x}%`, top: `${word.y}%`, background: "rgba(22, 119, 255, 0.9)", border: "2px solid #91caff", borderRadius: 10, padding: "8px 16px", color: "#fff", fontWeight: 800, fontSize: 32, transform: "translateX(-50%)", boxShadow: "0 4px 12px rgba(22,119,255,0.4)" }}>
+              <div key={word.id} style={{
+                position: "absolute", left: `${word.x}%`, top: `${word.y}%`,
+                background: "rgba(22, 119, 255, 0.9)", border: "2px solid #91caff",
+                borderRadius: 10, padding: "8px 16px", color: "#fff",
+                fontWeight: 800, fontSize: 32, transform: "translateX(-50%)",
+                boxShadow: "0 4px 12px rgba(22,119,255,0.4)"
+              }}>
                 {word.hanzi}
               </div>
             ))}
           </div>
 
-          {/* HIỂN THỊ MỤC TIÊU ĐANG RƠI */}
           {currentQuestion && (
             <div style={{ background: "#fffbe6", padding: 12, borderRadius: 12, border: "1px solid #ffe58f", marginBottom: 16 }}>
-              <Text type="secondary" style={{ display: "block", fontSize: 13 }}>Đang rơi chữ Hán, hãy tìm {towerMode === "meaning" ? "Nghĩa tiếng Việt" : "Pinyin"} phù hợp:</Text>
+              <Text type="secondary" style={{ display: "block", fontSize: 13 }}>
+                Đang rơi chữ Hán, hãy tìm {towerMode === "meaning" ? "Nghĩa" : "Pinyin"} phù hợp:
+              </Text>
               <div style={{ fontSize: 16, fontWeight: 700, color: "#d46b08", marginTop: 2 }}>
                 Lắng nghe hoặc quan sát các khối chữ phía trên!
               </div>
             </div>
           )}
 
-          {/* 4 NÚT CHỌN ĐÁP ÁN (NGHĨA HOẶC PINYIN) */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, maxWidth: 560, margin: "0 auto" }}>
             {options.map((optVal, idx) => (
-              <Button key={idx} size="large" onClick={() => handleSelectAnswer(optVal)} style={{ height: 56, fontSize: 18, fontWeight: 700, borderRadius: 12, background: "#f0f5ff", borderColor: "#adc6ff", color: "#1d39c4", whiteSpace: "normal", lineHeight: 1.2 }}>
+              <Button key={idx} size="large" onClick={() => handleSelectAnswer(optVal)}
+                style={{
+                  height: 56, fontSize: 18, fontWeight: 700, borderRadius: 12,
+                  background: "#f0f5ff", borderColor: "#adc6ff", color: "#1d39c4",
+                  whiteSpace: "normal", lineHeight: 1.2
+                }}>
                 {optVal}
               </Button>
             ))}

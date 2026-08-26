@@ -7,9 +7,7 @@ import {
   ArrowRightOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
-  AudioOutlined,
 } from "@ant-design/icons";
-import PronunciationTrainer from "@/components/PronunciationTrainer";
 
 const { Text } = Typography;
 
@@ -20,7 +18,7 @@ interface Game1Props {
   onFinishGame: (finalScore: number, finalCorrect: number) => void;
   playAudio: (text: string) => void;
   updateScoreAndCorrect: (points: number, isCorrect: boolean) => void;
-  currentScore: number;
+  currentScore?: number;
 }
 
 export default function Game1Flashcard({
@@ -28,16 +26,13 @@ export default function Game1Flashcard({
   onFinishGame,
   playAudio,
   updateScoreAndCorrect,
+  currentScore = 0,
 }: Game1Props) {
   const [g1Index, setG1Index] = useState(0);
   const [g1Selected, setG1Selected] = useState<string>("");
   const [g1Checked, setG1Checked] = useState(false);
   const [g1TimeLeft, setG1TimeLeft] = useState(15);
-  const [g1ShowMic, setG1ShowMic] = useState(false);
-  
-  // Cố định ngẫu nhiên các dạng câu hỏi đơn (chỉ 1 giá trị ở đáp án)
   const [g1CurrentPair, setG1CurrentPair] = useState<QuizQuestionPair>("hanzi_to_meaning");
-  
   const [localCorrectCount, setLocalCorrectCount] = useState(0);
   const [localScore, setLocalScore] = useState(0);
 
@@ -50,14 +45,13 @@ export default function Game1Flashcard({
       "pinyin_to_meaning",
       "meaning_to_hanzi",
     ];
-    return types[Math.floor(Math.random() * types.length)];
+    return types[index % types.length];
   };
 
   const g1OptionsList = useMemo(() => {
     if (!currentG1Task || !sessionData?.game1_single) return [];
 
-    if (g1CurrentPair === "hanzi_to_meaning") {
-      // Nhìn chữ Hán -> Chọn Nghĩa tiếng Việt
+    if (g1CurrentPair === "hanzi_to_meaning" || g1CurrentPair === "pinyin_to_meaning") {
       const correctItem = {
         label: currentG1Task.word.meaning,
         value: currentG1Task.word.meaning,
@@ -70,24 +64,7 @@ export default function Game1Flashcard({
           value: item.word.meaning,
         }));
       return [correctItem, ...distractors].sort(() => 0.5 - Math.random());
-    } 
-    else if (g1CurrentPair === "pinyin_to_meaning") {
-      // Nhìn Pinyin -> Chọn Nghĩa tiếng Việt
-      const correctItem = {
-        label: currentG1Task.word.meaning,
-        value: currentG1Task.word.meaning,
-      };
-      const distractors = sessionData.game1_single
-        .filter((item: any) => item.word.id !== currentG1Task.word.id)
-        .slice(0, 3)
-        .map((item: any) => ({
-          label: item.word.meaning,
-          value: item.word.meaning,
-        }));
-      return [correctItem, ...distractors].sort(() => 0.5 - Math.random());
-    } 
-    else {
-      // Nhìn Nghĩa -> Chọn Chữ Hán
+    } else {
       const correctItem = {
         label: currentG1Task.word.hanzi,
         value: currentG1Task.word.hanzi,
@@ -121,7 +98,7 @@ export default function Game1Flashcard({
 
     setG1TimeLeft(15);
     setG1CurrentPair(determinePairType(g1Index));
-    playAudio(currentG1Task.word.hanzi);
+    if (currentG1Task.word.hanzi) playAudio(currentG1Task.word.hanzi);
 
     g1TimerRef.current = setInterval(() => {
       setG1TimeLeft((prev) => {
@@ -166,7 +143,6 @@ export default function Game1Flashcard({
   const handleNextG1 = () => {
     setG1Selected("");
     setG1Checked(false);
-    setG1ShowMic(false);
     if (g1Index < (sessionData.game1_single?.length || 5) - 1) {
       setG1Index((prev) => prev + 1);
     } else {
@@ -174,199 +150,127 @@ export default function Game1Flashcard({
     }
   };
 
+  if (!currentG1Task) return null;
+
   return (
-    <Card
-      style={{
-        borderRadius: 20,
-        boxShadow: "0 8px 24px rgba(0,0,0,0.06)",
-        border: "1px solid #e8e8e8",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 12,
-          marginBottom: 18,
-        }}
-      >
+    <Card style={{ borderRadius: 20, boxShadow: "0 8px 24px rgba(0,0,0,0.06)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 18 }}>
         <Space>
           <Tag color="blue" style={{ fontSize: 13, padding: "3px 10px", borderRadius: 12 }}>
             Câu {g1Index + 1} / {sessionData.game1_single.length}
           </Tag>
           <Tag color="purple" style={{ fontSize: 12, borderRadius: 12 }}>
-            {g1CurrentPair === "hanzi_to_meaning"
-              ? "🀄 Chữ Hán ➔ Nghĩa"
-              : g1CurrentPair === "pinyin_to_meaning"
-              ? "🔤 Pinyin ➔ Nghĩa"
-              : "📖 Nghĩa Việt ➔ Chữ Hán"}
+            {g1CurrentPair === "hanzi_to_meaning" ? "🀄 Chữ Hán ➔ Nghĩa" :
+             g1CurrentPair === "pinyin_to_meaning" ? "🔤 Pinyin ➔ Nghĩa" : "📖 Nghĩa ➔ Chữ Hán"}
           </Tag>
         </Space>
-
         {!g1Checked ? (
-          <Tag
-            color={g1TimeLeft <= 3 ? "error" : "warning"}
-            icon={<ClockCircleOutlined />}
-            style={{ fontSize: 14, fontWeight: 700, padding: "3px 12px", borderRadius: 12 }}
-          >
-            Thời gian: {g1TimeLeft}s
+          <Tag color={g1TimeLeft <= 3 ? "error" : "warning"} icon={<ClockCircleOutlined />}
+            style={{ fontSize: 14, fontWeight: 700, padding: "3px 12px", borderRadius: 12 }}>
+            ⏱️ {g1TimeLeft}s
           </Tag>
         ) : (
           <Tag color="green" icon={<CheckCircleOutlined />} style={{ fontSize: 13, borderRadius: 12 }}>
-            Đã hoàn thành câu này
+            ✅ Đã hoàn thành
           </Tag>
         )}
       </div>
 
-      <div
-        style={{
-          background: !g1Checked
-            ? "linear-gradient(135deg, #f0f5ff 0%, #ffffff 100%)"
-            : isG1Correct
-            ? "#f6ffed"
-            : "#fff2f0",
-          borderRadius: 16,
-          padding: "24px 20px",
-          textAlign: "center",
-          border: !g1Checked
-            ? "1.5px solid #d6e4ff"
-            : isG1Correct
-            ? "1.5px solid #b7eb8f"
-            : "1.5px solid #ffccc7",
-          marginBottom: 24,
-        }}
-      >
+      <div style={{
+        background: !g1Checked ? "linear-gradient(135deg, #f0f5ff 0%, #ffffff 100%)" :
+          isG1Correct ? "#f6ffed" : "#fff2f0",
+        borderRadius: 16, padding: "24px 20px", textAlign: "center",
+        border: !g1Checked ? "1.5px solid #d6e4ff" :
+          isG1Correct ? "1.5px solid #b7eb8f" : "1.5px solid #ffccc7",
+        marginBottom: 24,
+      }}>
         {g1CurrentPair === "hanzi_to_meaning" && (
-          <div>
+          <>
             <Text type="secondary" style={{ fontSize: 13, display: "block", marginBottom: 6 }}>
               Nhìn Chữ Hán, chọn nghĩa tương ứng:
             </Text>
             <div style={{ fontSize: 64, fontWeight: 800, color: "#1677ff", lineHeight: 1.1 }}>
               {currentG1Task.word.hanzi}
             </div>
-          </div>
+          </>
         )}
-
         {g1CurrentPair === "pinyin_to_meaning" && (
-          <div>
+          <>
             <Text type="secondary" style={{ fontSize: 13, display: "block", marginBottom: 6 }}>
               Nhìn Pinyin, chọn nghĩa tương ứng:
             </Text>
             <div style={{ fontSize: 44, fontWeight: 800, color: "#d4380d", lineHeight: 1.2 }}>
               {currentG1Task.word.pinyin}
             </div>
-          </div>
+          </>
         )}
-
         {g1CurrentPair === "meaning_to_hanzi" && (
-          <div>
+          <>
             <Text type="secondary" style={{ fontSize: 13, display: "block", marginBottom: 6 }}>
-              Nhìn Nghĩa tiếng Việt, chọn Chữ Hán tương ứng:
+              Nhìn Nghĩa, chọn Chữ Hán tương ứng:
             </Text>
             <div style={{ fontSize: 36, fontWeight: 800, color: "#fa8c16", lineHeight: 1.2 }}>
               "{currentG1Task.word.meaning}"
             </div>
-          </div>
+          </>
         )}
 
         <div style={{ marginTop: 12 }}>
-          <Button
-            type="primary"
-            shape="circle"
-            icon={<SoundOutlined style={{ fontSize: 20 }} />}
+          <Button type="primary" shape="circle" icon={<SoundOutlined style={{ fontSize: 20 }} />}
             onClick={() => playAudio(currentG1Task.word.hanzi)}
-            style={{ width: 44, height: 44, boxShadow: "0 4px 12px rgba(22,119,255,0.25)" }}
-          />
-          <span style={{ marginLeft: 8, fontSize: 13, color: "#8c8c8c" }}>Nghe phát âm chuẩn</span>
+            style={{ width: 44, height: 44 }} />
+          <span style={{ marginLeft: 8, fontSize: 13, color: "#8c8c8c" }}>🔊 Nghe phát âm</span>
         </div>
 
         {g1Checked && (
           <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid rgba(0,0,0,0.06)" }}>
-            <Space size="large" wrap style={{ justifyContent: "center" }}>
-              <div>
-                <Text type="secondary" style={{ fontSize: 12, display: "block" }}>Chữ Hán:</Text>
+            <Space size="large" wrap>
+              <div><Text type="secondary" style={{ fontSize: 12 }}>Chữ Hán:</Text>
                 <Text strong style={{ fontSize: 22, color: "#1677ff" }}>{currentG1Task.word.hanzi}</Text>
               </div>
-              <div>
-                <Text type="secondary" style={{ fontSize: 12, display: "block" }}>Pinyin:</Text>
-                <Text code style={{ fontSize: 20, color: "#d4380d", fontWeight: 700 }}>{currentG1Task.word.pinyin}</Text>
+              <div><Text type="secondary" style={{ fontSize: 12 }}>Pinyin:</Text>
+                <Text code style={{ fontSize: 20, color: "#d4380d" }}>{currentG1Task.word.pinyin}</Text>
               </div>
-              <div>
-                <Text type="secondary" style={{ fontSize: 12, display: "block" }}>Nghĩa chuẩn:</Text>
-                <Tag color="cyan" style={{ fontSize: 15, padding: "2px 10px", fontWeight: 600 }}>{currentG1Task.word.meaning}</Tag>
+              <div><Text type="secondary" style={{ fontSize: 12 }}>Nghĩa:</Text>
+                <Tag color="cyan" style={{ fontSize: 15 }}>{currentG1Task.word.meaning}</Tag>
               </div>
             </Space>
           </div>
         )}
       </div>
 
-      <div style={{ maxWidth: 640, margin: "0 auto" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          {g1OptionsList.map((opt: any, idx: number) => {
-            let isCorrect = false;
-            let isWrong = false;
-
-            if (g1Checked) {
-              if (opt.value === correctTargetValue) isCorrect = true;
-              else if (opt.value === g1Selected) isWrong = true;
-            }
-
-            return (
-              <Button
-                key={idx}
-                size="large"
-                disabled={g1Checked}
-                onClick={() => handleSelectG1Option(opt.value)}
-                style={{
-                  height: 60,
-                  fontSize: 16,
-                  borderRadius: 12,
-                  fontWeight: 700,
-                  background: isCorrect ? "#52c41a" : isWrong ? "#ff4d4f" : "#ffffff",
-                  borderColor: isCorrect ? "#52c41a" : isWrong ? "#ff4d4f" : "#d9d9d9",
-                  color: isCorrect || isWrong ? "#ffffff" : "#262626",
-                }}
-              >
-                <span style={{ opacity: 0.7, marginRight: 6 }}>{String.fromCharCode(65 + idx)}.</span>
-                {opt.label}
-              </Button>
-            );
-          })}
-        </div>
-
-        {g1Checked && (
-          <div style={{ marginTop: 24 }}>
-            <div style={{ textAlign: "center", marginBottom: 16 }}>
-              {!g1ShowMic ? (
-                <Button icon={<AudioOutlined />} onClick={() => setG1ShowMic(true)} style={{ borderRadius: 8 }}>
-                  Thử thách phát âm từ này (Thu âm qua Mic)
-                </Button>
-              ) : (
-                <div style={{ background: "#fafafa", padding: 16, borderRadius: 12, border: "1px solid #f0f0f0" }}>
-                  <PronunciationTrainer
-                    hanzi={currentG1Task.word.hanzi}
-                    pinyin={currentG1Task.word.pinyin}
-                    meaning={currentG1Task.word.meaning}
-                  />
-                </div>
-              )}
-            </div>
-
-            <Button
-              type="primary"
-              size="large"
-              block
-              icon={<ArrowRightOutlined />}
-              onClick={handleNextG1}
-              style={{ height: 48, borderRadius: 10, fontSize: 16, fontWeight: 700 }}
-            >
-              {g1Index < sessionData.game1_single.length - 1 ? "Câu tiếp theo ➔" : "Xem tổng kết bài thi"}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, maxWidth: 640, margin: "0 auto" }}>
+        {g1OptionsList.map((opt: any, idx: number) => {
+          let isCorrect = false, isWrong = false;
+          if (g1Checked) {
+            if (opt.value === correctTargetValue) isCorrect = true;
+            else if (opt.value === g1Selected) isWrong = true;
+          }
+          return (
+            <Button key={idx} size="large" disabled={g1Checked}
+              onClick={() => handleSelectG1Option(opt.value)}
+              style={{
+                height: 60, fontSize: 16, borderRadius: 12, fontWeight: 700,
+                background: isCorrect ? "#52c41a" : isWrong ? "#ff4d4f" : "#ffffff",
+                borderColor: isCorrect ? "#52c41a" : isWrong ? "#ff4d4f" : "#d9d9d9",
+                color: isCorrect || isWrong ? "#ffffff" : "#262626",
+              }}>
+              <span style={{ opacity: 0.7, marginRight: 6 }}>{String.fromCharCode(65 + idx)}.</span>
+              {opt.label}
             </Button>
-          </div>
-        )}
+          );
+        })}
       </div>
+
+      {g1Checked && (
+        <div style={{ marginTop: 24 }}>
+          <Button type="primary" size="large" block icon={<ArrowRightOutlined />}
+            onClick={handleNextG1}
+            style={{ height: 48, borderRadius: 10, fontSize: 16, fontWeight: 700 }}>
+            {g1Index < sessionData.game1_single.length - 1 ? "Câu tiếp theo ➔" : "Xem tổng kết"}
+          </Button>
+        </div>
+      )}
     </Card>
   );
 }

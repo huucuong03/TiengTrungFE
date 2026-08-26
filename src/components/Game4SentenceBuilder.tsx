@@ -35,7 +35,6 @@ export default function Game4SentenceBuilder({
   const currentG4Task = sessionData?.game4_sentence?.[g4Index];
   const totalSentences = sessionData?.game4_sentence?.length || 1;
 
-  // Tự động đồng bộ khối từ vựng mỗi khi chuyển sang câu mới
   useEffect(() => {
     if (currentG4Task?.shuffled_words) {
       setG4Available([...currentG4Task.shuffled_words]);
@@ -77,10 +76,11 @@ export default function Game4SentenceBuilder({
     setG4Checked(true);
 
     if (isCorrect) {
-      setLocalScore((prev) => prev + 35);
+      const points = 35;
+      setLocalScore((prev) => prev + points);
       setLocalCorrect((prev) => prev + 1);
-      updateScoreAndCorrect(35, true);
-      message.success("✨ Sắp xếp câu chính xác! (+35đ)");
+      updateScoreAndCorrect(points, true);
+      message.success(`✨ Sắp xếp câu chính xác! (+${points}đ)`);
     } else {
       updateScoreAndCorrect(0, false);
       message.error("❌ Thứ tự câu chưa đúng!");
@@ -98,13 +98,7 @@ export default function Game4SentenceBuilder({
   if (!currentG4Task) return null;
 
   return (
-    <Card
-      style={{
-        borderRadius: 20,
-        boxShadow: "0 8px 24px rgba(0,0,0,0.06)",
-        background: "linear-gradient(135deg, #fdfefe 0%, #f7f9fb 100%)",
-      }}
-    >
+    <Card style={{ borderRadius: 20, boxShadow: "0 8px 24px rgba(0,0,0,0.06)" }}>
       <div style={{ textAlign: "center", marginBottom: 20 }}>
         <Title level={4} style={{ margin: 0, fontWeight: 800 }}>
           <OrderedListOutlined style={{ color: "#722ed1", marginRight: 8 }} />
@@ -112,124 +106,71 @@ export default function Game4SentenceBuilder({
         </Title>
         <div style={{ marginTop: 10, padding: "10px 20px", background: "#f0f2f5", borderRadius: 12, display: "inline-block" }}>
           <Text style={{ fontSize: 15 }}>
-            Ý nghĩa câu: <strong style={{ color: "#1f1f1f" }}>"{currentG4Task.vi}"</strong>
+            Ý nghĩa: <strong style={{ color: "#1f1f1f" }}>"{currentG4Task.vi}"</strong>
           </Text>
         </div>
       </div>
 
-      {/* VÙNG THẢ CÁC KHỐI TỪ ĐỂ GHÉP CÂU */}
-      <div
-        style={{
-          minHeight: 96,
-          padding: "16px",
-          background: "#ffffff",
-          borderRadius: 16,
-          border: g4Checked
-            ? g4IsCorrect
-              ? "2px solid #52c41a"
-              : "2px solid #ff4d4f"
-            : "2px dashed #91caff",
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 10,
-          marginBottom: 16,
-          boxShadow: "inset 0 2px 6px rgba(0,0,0,0.02)",
-        }}
-      >
+      {/* VÙNG THẢ TỪ */}
+      <div style={{
+        minHeight: 96, padding: "16px", background: "#ffffff", borderRadius: 16,
+        border: g4Checked ? (g4IsCorrect ? "2px solid #52c41a" : "2px solid #ff4d4f") : "2px dashed #91caff",
+        display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center",
+        gap: 10, marginBottom: 16, boxShadow: "inset 0 2px 6px rgba(0,0,0,0.02)",
+      }}>
         {g4UserSeq.length > 0 ? (
           g4UserSeq.map((w, idx) => (
-            <Button
-              key={`g4u-${idx}`}
-              type="primary"
-              disabled={g4Checked}
+            <Button key={`g4u-${idx}`} type="primary" disabled={g4Checked}
               onClick={() => handleRemoveG4Word(w, idx)}
               style={{
-                height: "auto",
-                padding: "8px 16px",
-                borderRadius: 10,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                background: "#1677ff",
-                borderColor: "#1677ff",
+                height: "auto", padding: "8px 16px", borderRadius: 10,
+                display: "flex", flexDirection: "column", alignItems: "center",
+                background: "#1677ff", borderColor: "#1677ff",
                 boxShadow: "0 4px 10px rgba(22,119,255,0.25)",
-              }}
-            >
+              }}>
               <span style={{ fontSize: 11, opacity: 0.85, lineHeight: 1.1 }}>{w.py}</span>
               <span style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.2, marginTop: 2 }}>{w.zh}</span>
             </Button>
           ))
         ) : (
           <Text type="secondary" style={{ fontSize: 14 }}>
-            👉 Bấm các khối từ ở phía dưới để sắp xếp vào đây theo thứ tự chuẩn...
+            👉 Bấm các khối từ bên dưới để sắp xếp...
           </Text>
         )}
       </div>
 
-      {/* THANH CÔNG CỤ NHANH (RESET) */}
       {g4UserSeq.length > 0 && !g4Checked && (
         <div style={{ textAlign: "right", marginBottom: 16 }}>
-          <Button
-            size="small"
-            icon={<ReloadOutlined />}
-            onClick={handleResetCurrentSentence}
-            style={{ borderRadius: 6, color: "#8c8c8c" }}
-          >
+          <Button size="small" icon={<ReloadOutlined />} onClick={handleResetCurrentSentence} style={{ borderRadius: 6 }}>
             Làm lại từ đầu
           </Button>
         </div>
       )}
 
-      {/* KHO CHỨA CÁC KHỐI TỪ XÁO TRỘN */}
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          justifyContent: "center",
-          gap: 12,
-          marginBottom: 24,
-          padding: "12px",
-          background: "#fafafa",
-          borderRadius: 14,
-          border: "1px solid #f0f0f0",
-        }}
-      >
+      {/* KHO TỪ */}
+      <div style={{
+        display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 12,
+        padding: "12px", background: "#fafafa", borderRadius: 14, border: "1px solid #f0f0f0", marginBottom: 24,
+      }}>
         {g4Available.map((w, idx) => (
-          <Button
-            key={`g4a-${idx}`}
-            disabled={g4Checked}
-            onClick={() => handlePickG4Word(w, idx)}
+          <Button key={`g4a-${idx}`} disabled={g4Checked} onClick={() => handlePickG4Word(w, idx)}
             style={{
-              height: "auto",
-              padding: "8px 18px",
-              borderRadius: 10,
-              background: "#ffffff",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              border: "1.5px solid #d9d9d9",
-              boxShadow: "0 2px 6px rgba(0,0,0,0.03)",
+              height: "auto", padding: "8px 18px", borderRadius: 10,
+              background: "#ffffff", display: "flex", flexDirection: "column", alignItems: "center",
+              border: "1.5px solid #d9d9d9", boxShadow: "0 2px 6px rgba(0,0,0,0.03)",
               cursor: "pointer",
-            }}
-          >
+            }}>
             <span style={{ fontSize: 11, color: "#d4380d", fontWeight: 700 }}>{w.py}</span>
             <span style={{ fontSize: 20, fontWeight: 800, color: "#262626", marginTop: 2 }}>{w.zh}</span>
           </Button>
         ))}
       </div>
 
-      {/* KHU VỰC NÚT BẤM KIỂM TRA / TIẾP TỤC */}
+      {/* NÚT ĐIỀU KHIỂN */}
       <div style={{ textAlign: "center" }}>
         {!g4Checked ? (
-          <Button
-            type="primary"
-            size="large"
-            disabled={g4UserSeq.length === 0}
-            onClick={handleCheckG4}
-            style={{ minWidth: 180, height: 48, borderRadius: 10, fontSize: 16, fontWeight: 700 }}
-          >
+          <Button type="primary" size="large" disabled={g4UserSeq.length === 0} onClick={handleCheckG4}
+            style={{ minWidth: 180, height: 48, borderRadius: 10, fontSize: 16, fontWeight: 700 }}>
             Kiểm tra câu
           </Button>
         ) : (
@@ -243,21 +184,13 @@ export default function Game4SentenceBuilder({
             )}
 
             <Space size="middle" style={{ justifyContent: "center" }}>
-              <Button
-                icon={<SoundOutlined />}
-                size="large"
+              <Button icon={<SoundOutlined />} size="large"
                 onClick={() => playAudio(currentG4Task.full_sentence)}
-                style={{ borderRadius: 10, height: 46 }}
-              >
-                Nghe phát âm chuẩn
+                style={{ borderRadius: 10, height: 46 }}>
+                🔊 Nghe phát âm
               </Button>
-              <Button
-                type="primary"
-                size="large"
-                icon={<ArrowRightOutlined />}
-                onClick={handleNextG4}
-                style={{ borderRadius: 10, height: 46, fontWeight: 700 }}
-              >
+              <Button type="primary" size="large" icon={<ArrowRightOutlined />} onClick={handleNextG4}
+                style={{ borderRadius: 10, height: 46, fontWeight: 700 }}>
                 {g4Index < totalSentences - 1 ? "Câu tiếp theo" : "Xem tổng kết"}
               </Button>
             </Space>

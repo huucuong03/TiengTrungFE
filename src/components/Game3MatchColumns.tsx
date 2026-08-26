@@ -1,227 +1,202 @@
 "use client";
 
-import { useState } from "react";
-import { Card, Button, Typography, Tag, message } from "antd";
-import { BranchesOutlined, CheckCircleOutlined, CloseCircleOutlined } from "@ant-design/icons";
+import { useState, useEffect, useRef } from "react";
+import { Card, Typography, Tag, message } from "antd";
+import { AppstoreOutlined, FireOutlined } from "@ant-design/icons";
 
 const { Title, Text } = Typography;
 
-interface Game3Props {
+interface Game2Props {
   sessionData: any;
   onFinishGame: (finalScore: number, finalCorrect: number) => void;
+  playAudio: (text: string) => void;
   updateScoreAndCorrect: (points: number, isCorrect: boolean) => void;
 }
 
-export default function Game3MatchColumns({
+export default function Game2MemoryMatch({
   sessionData,
   onFinishGame,
+  playAudio,
   updateScoreAndCorrect,
-}: Game3Props) {
-  const [g3Hanzi, setG3Hanzi] = useState<any>(null);
-  const [g3Pinyin, setG3Pinyin] = useState<any>(null);
-  const [g3Meaning, setG3Meaning] = useState<any>(null);
-  const [g3Matched, setG3Matched] = useState<number[]>([]);
-  const [isWrongAttempt, setIsWrongAttempt] = useState(false); // Trạng thái báo lỗi chớp đỏ
+}: Game2Props) {
+  const [g2Cards, setG2Cards] = useState<any[]>([]);
+  const [g2FirstSelection, setG2FirstSelection] = useState<any>(null);
+  const [g2SecondSelection, setG2SecondSelection] = useState<any>(null);
+  const [g2IsChecking, setG2IsChecking] = useState(false);
+  const [g2MatchedPairsCount, setG2MatchedPairsCount] = useState(0);
+  const [g2Flips, setG2Flips] = useState(0);
+  const [g2Combo, setG2Combo] = useState(0);
+  const [g2TimeSeconds, setG2TimeSeconds] = useState(0);
   const [localScore, setLocalScore] = useState(0);
   const [localCorrect, setLocalCorrect] = useState(0);
 
-  const totalPairs = sessionData?.game3_match3?.total_pairs || 1;
+  const g2TimerRef = useRef<NodeJS.Timeout | null>(null);
+  const totalPairs = sessionData?.game2_match?.total_pairs || 1;
 
-  const handleSelectG3 = (card: any) => {
-    if (g3Matched.includes(card.id) || isWrongAttempt) return;
+  useEffect(() => {
+    if (sessionData?.game2_match) {
+      const hCards = sessionData.game2_match.hanzi_cards.map((c: any) => ({
+        ...c,
+        display: c.text,
+        pinyin: c.pinyin || "",
+        cardType: "hanzi",
+        uniqueKey: `h-${c.id}-${Math.random()}`,
+      }));
+      const mCards = sessionData.game2_match.meaning_cards.map((c: any) => ({
+        ...c,
+        display: c.text,
+        cardType: "meaning",
+        uniqueKey: `m-${c.id}-${Math.random()}`,
+      }));
 
-    let nextH = g3Hanzi;
-    let nextP = g3Pinyin;
-    let nextM = g3Meaning;
-
-    // Xử lý chọn từng cột độc lập
-    if (card.type === "hanzi") {
-      nextH = g3Hanzi?.id === card.id ? null : card;
-      setG3Hanzi(nextH);
-    } else if (card.type === "pinyin") {
-      nextP = g3Pinyin?.id === card.id ? null : card;
-      setG3Pinyin(nextP);
-    } else if (card.type === "meaning") {
-      nextM = g3Meaning?.id === card.id ? null : card;
-      setG3Meaning(nextM);
+      const combined = [...hCards, ...mCards].sort(() => 0.5 - Math.random());
+      setG2Cards(combined);
     }
 
-    // Nếu đã chọn đủ 3 cột, tiến hành kiểm tra ID đồng bộ
-    if (nextH && nextP && nextM) {
-      if (nextH.id === nextP.id && nextP.id === nextM.id) {
-        // ĐÚNG CẢ 3 CỘT (+30 điểm)
-        const nextMatched = [...g3Matched, nextH.id];
-        setG3Matched(nextMatched);
-        
-        const gainedPts = 30;
-        setLocalScore((prev) => prev + gainedPts);
-        setLocalCorrect((prev) => prev + 1);
-        updateScoreAndCorrect(gainedPts, true);
-        message.success("✨ Nối khớp hoàn hảo 3 cột! (+30đ)");
+    g2TimerRef.current = setInterval(() => {
+      setG2TimeSeconds((prev) => prev + 1);
+    }, 1000);
 
-        setG3Hanzi(null);
-        setG3Pinyin(null);
-        setG3Meaning(null);
+    return () => {
+      if (g2TimerRef.current) clearInterval(g2TimerRef.current);
+    };
+  }, [sessionData]);
 
-        if (nextMatched.length === totalPairs) {
-          setTimeout(() => {
-            onFinishGame(localScore + gainedPts, localCorrect + 1);
-          }, 900);
-        }
-      } else {
-        // SAI CẶP LIÊN KẾT (-10 điểm)
-        setIsWrongAttempt(true);
-        const penaltyPts = 10;
-        
-        setLocalScore((prev) => Math.max(0, prev - penaltyPts));
-        updateScoreAndCorrect(-penaltyPts, false);
-        message.error("❌ 3 thẻ không khớp nhau! (-10đ)");
+  const handleFlipCard = (card: any) => {
+    if (g2IsChecking || card.isMatched || g2FirstSelection?.uniqueKey === card.uniqueKey) return;
 
+    if (!g2FirstSelection) {
+      setG2FirstSelection(card);
+      return;
+    }
+
+    setG2SecondSelection(card);
+    setG2Flips((prev) => prev + 1);
+    setG2IsChecking(true);
+
+    if (g2FirstSelection.id === card.id && g2FirstSelection.cardType !== card.cardType) {
+      setG2Cards((prev) =>
+        prev.map((c) => (c.id === card.id ? { ...c, isMatched: true } : c))
+      );
+      
+      const newCombo = g2Combo + 1;
+      setG2Combo(newCombo);
+      const bonusPts = 25 + newCombo * 5;
+      
+      setLocalScore((prev) => prev + bonusPts);
+      setLocalCorrect((prev) => prev + 1);
+      updateScoreAndCorrect(bonusPts, true);
+      message.success(`Ghép đúng! +${bonusPts} điểm (Combo x${newCombo})`);
+
+      const nextMatchedCount = g2MatchedPairsCount + 1;
+      setG2MatchedPairsCount(nextMatchedCount);
+      resetG2Turn();
+
+      if (nextMatchedCount === totalPairs) {
+        if (g2TimerRef.current) clearInterval(g2TimerRef.current);
         setTimeout(() => {
-          setG3Hanzi(null);
-          setG3Pinyin(null);
-          setG3Meaning(null);
-          setIsWrongAttempt(false);
-        }, 600);
+          onFinishGame(localScore + bonusPts, localCorrect + 1);
+        }, 1000);
       }
+    } else {
+      setG2Combo(0);
+      setTimeout(() => {
+        resetG2Turn();
+      }, 800);
     }
   };
 
+  const resetG2Turn = () => {
+    setG2FirstSelection(null);
+    setG2SecondSelection(null);
+    setG2IsChecking(false);
+  };
+
   return (
-    <Card style={{ borderRadius: 20, boxShadow: "0 8px 24px rgba(0,0,0,0.06)", background: "linear-gradient(135deg, #fdfefe 0%, #f7f9fb 100%)" }}>
-      <div style={{ textAlign: "center", marginBottom: 20 }}>
-        <Title level={4} style={{ margin: 0, fontWeight: 800 }}>
-          <BranchesOutlined style={{ color: "#fa541c", marginRight: 8 }} />
-          Nối 3 Cột: Chữ Hán ➔ Pinyin ➔ Nghĩa
+    <Card style={{ borderRadius: 20, boxShadow: "0 8px 24px rgba(0,0,0,0.06)", textAlign: "center" }}>
+      <div style={{ marginBottom: 20 }}>
+        <Title level={4} style={{ margin: 0, fontWeight: 800, color: "#1f1f1f" }}>
+          <AppstoreOutlined style={{ color: "#52c41a", marginRight: 8 }} />
+          Thử Thách Lật Thẻ Trí Nhớ
         </Title>
-        <Text type="secondary" style={{ fontSize: 13 }}>
-          Chọn lần lượt 1 thẻ Chữ Hán, 1 thẻ Pinyin và 1 thẻ Nghĩa tương ứng. Ghép sai sẽ bị trừ 10 điểm!
-        </Text>
-        <div style={{ marginTop: 10, display: "flex", justifyContent: "center", gap: 12 }}>
-          <Tag color="green" style={{ fontSize: 13, padding: "4px 12px", borderRadius: 12 }}>
-            ✨ Đã nối: {g3Matched.length} / {totalPairs} từ
+        <Text type="secondary">Lật thẻ và ghép Chữ Hán với Nghĩa tiếng Việt tương ứng.</Text>
+
+        <div style={{ marginTop: 14, display: "flex", justifyContent: "center", gap: 12, flexWrap: "wrap" }}>
+          <Tag color="blue" style={{ fontSize: 13, padding: "4px 12px", borderRadius: 12 }}>
+            ⏱️ {g2TimeSeconds}s
           </Tag>
-          <Tag color="volcano" style={{ fontSize: 13, padding: "4px 12px", borderRadius: 12 }}>
-            ⭐ Điểm tạm tính: {localScore}
+          <Tag color="orange" style={{ fontSize: 13, padding: "4px 12px", borderRadius: 12 }}>
+            🔄 Lật: {g2Flips} lần
+          </Tag>
+          {g2Combo > 1 && (
+            <Tag color="volcano" icon={<FireOutlined />} style={{ fontSize: 13, padding: "4px 12px", borderRadius: 12, fontWeight: "bold" }}>
+              COMBO x{g2Combo}!
+            </Tag>
+          )}
+          <Tag color="green" style={{ fontSize: 13, padding: "4px 12px", borderRadius: 12 }}>
+            ✨ Đã ghép: {g2MatchedPairsCount} / {totalPairs}
           </Tag>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, maxWidth: 760, margin: "0 auto" }}>
-        
-        {/* CỘT 1: CHỮ HÁN */}
-        <div>
-          <div style={{ textAlign: "center", marginBottom: 10 }}>
-            <Tag color="blue" style={{ fontWeight: 700 }}>1. Chữ Hán</Tag>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {sessionData.game3_match3.hanzi_col.map((card: any) => {
-              const isMatched = g3Matched.includes(card.id);
-              const isSelected = g3Hanzi?.id === card.id;
-              return (
-                <Button
-                  key={`g3h-${card.id}`}
-                  size="large"
-                  block
-                  disabled={isMatched}
-                  onClick={() => handleSelectG3(card)}
-                  style={{
-                    height: 56,
-                    fontSize: 24,
-                    fontWeight: 700,
-                    borderRadius: 12,
-                    opacity: isMatched ? 0.25 : 1,
-                    background: isMatched ? "#f6ffed" : isWrongAttempt && isSelected ? "#fff2f0" : isSelected ? "#1677ff" : "#ffffff",
-                    border: isWrongAttempt && isSelected ? "2px solid #ff4d4f" : isSelected ? "2px solid #1677ff" : "1.5px solid #d9d9d9",
-                    color: isSelected && !isWrongAttempt ? "#ffffff" : isWrongAttempt && isSelected ? "#ff4d4f" : "#262626",
-                    boxShadow: isSelected ? "0 4px 12px rgba(22,119,255,0.3)" : "none",
-                    transform: isSelected ? "scale(1.02)" : "scale(1)",
-                    transition: "all 0.2s ease",
-                  }}
-                >
-                  {card.text} {isMatched && <CheckCircleOutlined style={{ color: "#52c41a" }} />}
-                </Button>
-              );
-            })}
-          </div>
-        </div>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(135px, 1fr))",
+        gap: 14,
+        maxWidth: 720,
+        margin: "0 auto",
+        padding: "10px",
+      }}>
+        {g2Cards.map((card: any) => {
+          const isFlipped = card.isMatched ||
+            g2FirstSelection?.uniqueKey === card.uniqueKey ||
+            g2SecondSelection?.uniqueKey === card.uniqueKey;
 
-        {/* CỘT 2: PINYIN */}
-        <div>
-          <div style={{ textAlign: "center", marginBottom: 10 }}>
-            <Tag color="volcano" style={{ fontWeight: 700 }}>2. Pinyin</Tag>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {sessionData.game3_match3.pinyin_col.map((card: any) => {
-              const isMatched = g3Matched.includes(card.id);
-              const isSelected = g3Pinyin?.id === card.id;
-              return (
-                <Button
-                  key={`g3p-${card.id}`}
-                  size="large"
-                  block
-                  disabled={isMatched}
-                  onClick={() => handleSelectG3(card)}
-                  style={{
-                    height: 56,
-                    fontSize: 16,
-                    fontWeight: 700,
-                    borderRadius: 12,
-                    opacity: isMatched ? 0.25 : 1,
-                    background: isMatched ? "#f6ffed" : isWrongAttempt && isSelected ? "#fff2f0" : isSelected ? "#fa541c" : "#ffffff",
-                    border: isWrongAttempt && isSelected ? "2px solid #ff4d4f" : isSelected ? "2px solid #fa541c" : "1.5px solid #d9d9d9",
-                    color: isSelected && !isWrongAttempt ? "#ffffff" : isWrongAttempt && isSelected ? "#ff4d4f" : "#d4380d",
-                    boxShadow: isSelected ? "0 4px 12px rgba(250,84,28,0.3)" : "none",
-                    transform: isSelected ? "scale(1.02)" : "scale(1)",
-                    transition: "all 0.2s ease",
-                  }}
-                >
-                  {card.text}
-                </Button>
-              );
-            })}
-          </div>
-        </div>
+          const isWrongSelection = g2IsChecking &&
+            (g2FirstSelection?.uniqueKey === card.uniqueKey || g2SecondSelection?.uniqueKey === card.uniqueKey) &&
+            !card.isMatched;
 
-        {/* CỘT 3: NGHĨA VIỆT */}
-        <div>
-          <div style={{ textAlign: "center", marginBottom: 10 }}>
-            <Tag color="green" style={{ fontWeight: 700 }}>3. Nghĩa Việt</Tag>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {sessionData.game3_match3.meaning_col.map((card: any) => {
-              const isMatched = g3Matched.includes(card.id);
-              const isSelected = g3Meaning?.id === card.id;
-              return (
-                <Button
-                  key={`g3m-${card.id}`}
-                  size="large"
-                  block
-                  disabled={isMatched}
-                  onClick={() => handleSelectG3(card)}
-                  style={{
-                    height: 56,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    borderRadius: 12,
-                    opacity: isMatched ? 0.25 : 1,
-                    background: isMatched ? "#f6ffed" : isWrongAttempt && isSelected ? "#fff2f0" : isSelected ? "#52c41a" : "#ffffff",
-                    border: isWrongAttempt && isSelected ? "2px solid #ff4d4f" : isSelected ? "2px solid #52c41a" : "1.5px solid #d9d9d9",
-                    color: isSelected && !isWrongAttempt ? "#ffffff" : isWrongAttempt && isSelected ? "#ff4d4f" : "#262626",
-                    boxShadow: isSelected ? "0 4px 12px rgba(82,196,26,0.3)" : "none",
-                    transform: isSelected ? "scale(1.02)" : "scale(1)",
-                    transition: "all 0.2s ease",
-                    whiteSpace: "normal",
-                    lineHeight: 1.2,
-                  }}
-                >
-                  {card.text}
-                </Button>
-              );
-            })}
-          </div>
-        </div>
-
+          return (
+            <div key={card.uniqueKey} onClick={() => !card.isMatched && handleFlipCard(card)}
+              style={{
+                height: 100, borderRadius: 16,
+                background: card.isMatched ? "#f6ffed" :
+                  isWrongSelection ? "#fff2f0" :
+                  isFlipped ? "#ffffff" : "linear-gradient(135deg, #1677ff 0%, #0958d9 100%)",
+                border: card.isMatched ? "2px solid #52c41a" :
+                  isWrongSelection ? "2px solid #ff4d4f" :
+                  isFlipped ? "2px solid #1677ff" : "2px solid #0958d9",
+                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                cursor: card.isMatched ? "default" : "pointer",
+                boxShadow: isFlipped ? "0 6px 16px rgba(0,0,0,0.08)" : "0 8px 20px rgba(22,119,255,0.3)",
+                transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                transform: isFlipped ? "translateY(-2px)" : "translateY(0)",
+                userSelect: "none", padding: "8px",
+              }}>
+              {isFlipped ? (
+                <>
+                  <span style={{
+                    fontSize: card.cardType === "hanzi" ? 30 : 14,
+                    fontWeight: 700, color: card.isMatched ? "#52c41a" : "#1f1f1f",
+                    textAlign: "center", lineHeight: 1.2,
+                  }}>
+                    {card.display}
+                  </span>
+                  {card.cardType === "hanzi" && card.pinyin && (
+                    <span style={{ fontSize: 11, color: "#d4380d", fontWeight: 600, marginTop: 4 }}>
+                      {card.pinyin}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <div style={{ textAlign: "center" }}>
+                  <span style={{ fontSize: 28, filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))" }}>🀄</span>
+                  <div style={{ fontSize: 10, color: "#ffffff", opacity: 0.8, fontWeight: 600, marginTop: 2 }}>LẬT THẺ</div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </Card>
   );

@@ -24,6 +24,8 @@ import {
   ReloadOutlined,
   BookOutlined,
   EditOutlined,
+  FileTextOutlined,
+  FontSizeOutlined,
 } from "@ant-design/icons";
 
 import WritingQuizCanvas from "@/components/WritingQuizCanvas";
@@ -32,9 +34,12 @@ import Game2MemoryMatch from "@/components/Game2MemoryMatch";
 import Game3MatchColumns from "@/components/Game3MatchColumns";
 import Game4SentenceBuilder from "@/components/Game4SentenceBuilder";
 import GameVocabularyTower from "@/components/GameVocabularyTower";
+import GameSentencePractice from "@/components/GameSentencePractice";
+import GameCharacterPractice from "@/components/GameCharacterPractice";
 
 const { Title, Text } = Typography;
 
+// ✅ THÊM game7 và game8 vào type
 type GameMode =
   | "menu"
   | "game1"
@@ -43,6 +48,8 @@ type GameMode =
   | "game4"
   | "game5"
   | "game6"
+  | "game7"
+  | "game8"
   | "completed";
 
 export default function QuizPage() {
@@ -119,7 +126,6 @@ export default function QuizPage() {
     }
   };
 
-  // Hàm gọi API lưu kết quả lên Database (CHỈ GỌI KHI HOÀN THÀNH XUẤT SẮC)
   const submitFinalResult = async (finalScore: number, finalCorrect: number) => {
     const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
     if (!token) return;
@@ -137,7 +143,6 @@ export default function QuizPage() {
     }
   };
 
-  // Nút Bỏ cuộc / Về Menu giữa chừng -> TUYỆT ĐỐI KHÔNG LƯU DB
   const handleQuitGame = () => {
     message.info("Đã hủy phiên chơi, điểm số không được ghi nhận.");
     setGameMode("menu");
@@ -173,7 +178,6 @@ export default function QuizPage() {
       setG5Index((prev) => prev + 1);
       setG5DoneCurrent(false);
     } else {
-      // HOÀN THÀNH GAME 5 -> GỌI HÀM LƯU DB
       submitFinalResult(score, correctCount);
       setGameMode("completed");
     }
@@ -225,77 +229,112 @@ export default function QuizPage() {
             <Row gutter={[16, 16]}>
               <Col xs={24} sm={8}>
                 <Card style={{ borderRadius: 14, border: "1px solid #d9f7be", background: "linear-gradient(135deg, #f6ffed 0%, #ffffff 100%)" }}>
-                  <Statistic 
-                    title={<span style={{ fontWeight: 600, color: "#389e0d" }}>Mục tiêu ngày</span>} 
-                    value={stats.today.completed_sessions} 
-                    suffix={`/ 5 lần`} 
-                    styles={{ content: { color: "#52c41a", fontWeight: 800 } }} 
-                    prefix={<CheckCircleOutlined />} 
+                  <Statistic
+                    title={<span style={{ fontWeight: 600, color: "#389e0d" }}>Mục tiêu ngày</span>}
+                    value={stats.today.completed_sessions}
+                    suffix={`/ 5 lần`}
+                    styles={{ content: { color: "#52c41a", fontWeight: 800 } }}
+                    prefix={<CheckCircleOutlined />}
                   />
                   <Progress percent={Math.min(100, Math.round((stats.today.completed_sessions / 5) * 100))} strokeColor="#52c41a" style={{ marginTop: 8 }} />
                 </Card>
               </Col>
               <Col xs={24} sm={8}>
                 <Card style={{ borderRadius: 14, border: "1px solid #ffe58f", background: "linear-gradient(135deg, #fffbe6 0%, #ffffff 100%)" }}>
-                  <Statistic 
-                    title={<span style={{ fontWeight: 600, color: "#d46b08" }}>ĐTB Hôm nay</span>} 
-                    value={stats.today.avg_score} 
-                    precision={1} 
-                    suffix="/ 100" 
-                    styles={{ content: { color: "#fa8c16", fontWeight: 800 } }} 
-                    prefix={<TrophyOutlined />} 
+                  <Statistic
+                    title={<span style={{ fontWeight: 600, color: "#d46b08" }}>ĐTB Hôm nay</span>}
+                    value={stats.today.avg_score}
+                    precision={1}
+                    suffix="/ 100"
+                    styles={{ content: { color: "#fa8c16", fontWeight: 800 } }}
+                    prefix={<TrophyOutlined />}
                   />
                 </Card>
               </Col>
               <Col xs={24} sm={8}>
+                // Trong QuizPage.tsx, phần hiển thị stats
                 <Card style={{ borderRadius: 14, border: "1px solid #d6e4ff", background: "linear-gradient(135deg, #f0f5ff 0%, #ffffff 100%)" }}>
-                  <Statistic 
-                    title={<span style={{ fontWeight: 600, color: "#1d39c4" }}>Từ thành thạo</span>} 
-                    value={masteredCount} 
-                    suffix="từ" 
-                    styles={{ content: { color: "#2f54eb", fontWeight: 800 } }} 
-                    prefix={<ThunderboltOutlined />} 
+                  <Statistic
+                    title={<span style={{ fontWeight: 600, color: "#1d39c4" }}>Từ thành thạo</span>}
+                    value={stats?.mastery?.mastered_words || 0}
+                    suffix="từ"
+                    styles={{ content: { color: "#2f54eb", fontWeight: 800 } }}
+                    prefix={<ThunderboltOutlined />}
                   />
+                  {stats?.mastery?.total_words > 0 && (
+                    <Progress
+                      percent={Math.round((stats.mastery.mastered_words / stats.mastery.total_words) * 100)}
+                      size="small"
+                      strokeColor="#2f54eb"
+                      style={{ marginTop: 8 }}
+                    />
+                  )}
                 </Card>
               </Col>
             </Row>
           )}
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 20, marginTop: 8 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20, marginTop: 8 }}>
+            {/* Game 1 */}
             <Card hoverable onClick={() => startGame("game1")} style={{ borderRadius: 16, border: "1px solid #bae0ff", background: "linear-gradient(135deg, #f0f5ff 0%, #ffffff 100%)" }}>
               <Tag color="blue">TRÒ CHƠI 1</Tag>
               <Title level={4} style={{ margin: "8px 0 4px 0", fontWeight: 700 }}>🎯 Đấu Trường Nhận Diện 3 Cặp</Title>
               <Button type="primary" size="large" block icon={<PlayCircleOutlined />} style={{ marginTop: 16, borderRadius: 8 }}>Bắt đầu chơi</Button>
             </Card>
 
+            {/* Game 2 */}
             <Card hoverable={isGame2Unlocked} onClick={() => startGame("game2")} style={{ borderRadius: 16, border: "1px solid #b7eb8f" }}>
               <Tag color="green">TRÒ CHƠI 2</Tag>
               <Title level={4} style={{ margin: "8px 0 4px 0", fontWeight: 700 }}>🃏 Lật Thẻ Trí Nhớ</Title>
               <Button type="primary" size="large" block icon={<PlayCircleOutlined />} style={{ marginTop: 16, borderRadius: 8, background: "#52c41a" }}>Bắt đầu chơi</Button>
             </Card>
 
+            {/* Game 3 */}
             <Card hoverable={isGame3Unlocked} onClick={() => startGame("game3")} style={{ borderRadius: 16, border: "1px solid #ffd591" }}>
               <Tag color="volcano">TRÒ CHƠI 3</Tag>
               <Title level={4} style={{ margin: "8px 0 4px 0", fontWeight: 700 }}>⚡ Nối 3 Cột</Title>
               <Button type="primary" size="large" block icon={<PlayCircleOutlined />} style={{ marginTop: 16, borderRadius: 8, background: "#fa541c" }}>Bắt đầu chơi</Button>
             </Card>
 
+            {/* Game 4 */}
             <Card hoverable={isGame4Unlocked} onClick={() => startGame("game4")} style={{ borderRadius: 16, border: "1px solid #d3adf7" }}>
               <Tag color="purple">TRÒ CHƠI 4</Tag>
               <Title level={4} style={{ margin: "8px 0 4px 0", fontWeight: 700 }}>📝 Sắp Xếp Từ Ghép Câu</Title>
               <Button type="primary" size="large" block icon={<PlayCircleOutlined />} style={{ marginTop: 16, borderRadius: 8, background: "#722ed1" }}>Bắt đầu chơi</Button>
             </Card>
 
+            {/* Game 6 - Tower */}
             <Card hoverable onClick={() => startGame("game6")} style={{ borderRadius: 16, border: "1px solid #ffbb96", background: "linear-gradient(135deg, #fff2e8 0%, #ffffff 100%)" }}>
               <Tag color="orange">TRÒ CHƠI 6 • HÀNH ĐỘNG</Tag>
-              <Title level={4} style={{ margin: "8px 0 4px 0", fontWeight: 700 }}>🏰 Tháp Từ Vựng (Vocabulary Tower)</Title>
+              <Title level={4} style={{ margin: "8px 0 4px 0", fontWeight: 700 }}>🏰 Tháp Từ Vựng</Title>
               <Button type="primary" size="large" block icon={<PlayCircleOutlined />} style={{ marginTop: 16, borderRadius: 8, background: "#fa541c" }}>Bắt đầu chơi</Button>
             </Card>
 
-            <Card hoverable onClick={() => startGame("game5")} style={{ borderRadius: 16, border: "1px solid #ffd666", background: "linear-gradient(135deg, #fffbe6 0%, #ffffff 100%)", gridColumn: "1 / -1" }}>
-              <Tag color="gold">THỬ THÁCH BÚT THUẬN</Tag>
+            {/* Game 5 - Writing */}
+            <Card hoverable onClick={() => startGame("game5")} style={{ borderRadius: 16, border: "1px solid #ffd666", background: "linear-gradient(135deg, #fffbe6 0%, #ffffff 100%)" }}>
+              <Tag color="gold">TRÒ CHƠI 5</Tag>
               <Title level={4} style={{ margin: "8px 0 4px 0", fontWeight: 700 }}>✍️ Viết Chữ Hán</Title>
               <Button type="primary" size="large" icon={<EditOutlined />} style={{ marginTop: 16, borderRadius: 8, background: "#faad14", borderColor: "#faad14" }}>Bắt đầu viết</Button>
+            </Card>
+
+            {/* ✅ GAME 7 - Luyện Câu */}
+            <Card hoverable onClick={() => startGame("game7")} style={{ borderRadius: 16, border: "1px solid #b7eb8f", background: "linear-gradient(135deg, #f6ffed 0%, #ffffff 100%)" }}>
+              <Tag color="green">TRÒ CHƠI 7 • MỚI</Tag>
+              <Title level={4} style={{ margin: "8px 0 4px 0", fontWeight: 700 }}><FileTextOutlined /> Luyện Câu - Điền Từ</Title>
+              <Text type="secondary" style={{ fontSize: 13, display: "block" }}>
+                Điền từ còn thiếu vào câu tiếng Trung
+              </Text>
+              <Button type="primary" size="large" block icon={<PlayCircleOutlined />} style={{ marginTop: 16, borderRadius: 8, background: "#52c41a" }}>Bắt đầu</Button>
+            </Card>
+
+            {/* ✅ GAME 8 - Luyện Chữ */}
+            <Card hoverable onClick={() => startGame("game8")} style={{ borderRadius: 16, border: "1px solid #ffd591", background: "linear-gradient(135deg, #fff7e6 0%, #ffffff 100%)" }}>
+              <Tag color="orange">TRÒ CHƠI 8 • MỚI</Tag>
+              <Title level={4} style={{ margin: "8px 0 4px 0", fontWeight: 700 }}><FontSizeOutlined /> Luyện Chữ Hán</Title>
+              <Text type="secondary" style={{ fontSize: 13, display: "block" }}>
+                Viết đúng chữ Hán theo Pinyin và nghĩa
+              </Text>
+              <Button type="primary" size="large" block icon={<PlayCircleOutlined />} style={{ marginTop: 16, borderRadius: 8, background: "#fa8c16" }}>Bắt đầu</Button>
             </Card>
           </div>
         </div>
@@ -304,7 +343,6 @@ export default function QuizPage() {
       {gameMode !== "menu" && gameMode !== "completed" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#ffffff", padding: "12px 20px", borderRadius: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-            {/* Nút Về Menu / Bỏ cuộc: Không lưu điểm vào Database */}
             <Button icon={<LeftOutlined />} onClick={handleQuitGame} style={{ borderRadius: 6 }}>
               Bỏ cuộc / Về Menu
             </Button>
@@ -313,6 +351,7 @@ export default function QuizPage() {
             </Tag>
           </div>
 
+          {/* ===== GAME 1 ===== */}
           {gameMode === "game1" && sessionData && (
             <Game1Flashcard
               sessionData={sessionData}
@@ -320,7 +359,7 @@ export default function QuizPage() {
               onFinishGame={(finalScore, finalCorrect) => {
                 setScore(finalScore);
                 setCorrectCount(finalCorrect);
-                submitFinalResult(finalScore, finalCorrect); // Lưu khi hoàn thành
+                submitFinalResult(finalScore, finalCorrect);
                 setGameMode("completed");
               }}
               updateScoreAndCorrect={(pts, correct) => {
@@ -331,6 +370,7 @@ export default function QuizPage() {
             />
           )}
 
+          {/* ===== GAME 2 ===== */}
           {gameMode === "game2" && sessionData && (
             <Game2MemoryMatch
               sessionData={sessionData}
@@ -338,7 +378,7 @@ export default function QuizPage() {
               onFinishGame={(finalScore, finalCorrect) => {
                 setScore(finalScore);
                 setCorrectCount(finalCorrect);
-                submitFinalResult(finalScore, finalCorrect); // Lưu khi hoàn thành
+                submitFinalResult(finalScore, finalCorrect);
                 setGameMode("completed");
               }}
               updateScoreAndCorrect={(pts, correct) => {
@@ -348,13 +388,15 @@ export default function QuizPage() {
             />
           )}
 
+          {/* ===== GAME 3 ===== */}
           {gameMode === "game3" && sessionData && (
             <Game3MatchColumns
               sessionData={sessionData}
+              playAudio={playAudio}
               onFinishGame={(finalScore, finalCorrect) => {
                 setScore(finalScore);
                 setCorrectCount(finalCorrect);
-                submitFinalResult(finalScore, finalCorrect); // Lưu khi hoàn thành
+                submitFinalResult(finalScore, finalCorrect);
                 setGameMode("completed");
               }}
               updateScoreAndCorrect={(pts, correct) => {
@@ -364,6 +406,7 @@ export default function QuizPage() {
             />
           )}
 
+          {/* ===== GAME 4 ===== */}
           {gameMode === "game4" && sessionData && (
             <Game4SentenceBuilder
               sessionData={sessionData}
@@ -371,7 +414,7 @@ export default function QuizPage() {
               onFinishGame={(finalScore, finalCorrect) => {
                 setScore(finalScore);
                 setCorrectCount(finalCorrect);
-                submitFinalResult(finalScore, finalCorrect); // Lưu khi hoàn thành
+                submitFinalResult(finalScore, finalCorrect);
                 setGameMode("completed");
               }}
               updateScoreAndCorrect={(pts, correct) => {
@@ -381,6 +424,7 @@ export default function QuizPage() {
             />
           )}
 
+          {/* ===== GAME 6 - TOWER ===== */}
           {gameMode === "game6" && sessionData && (
             <GameVocabularyTower
               sessionData={sessionData}
@@ -388,12 +432,13 @@ export default function QuizPage() {
               onFinishGame={(finalScore, finalCorrect) => {
                 setScore(finalScore);
                 setCorrectCount(finalCorrect);
-                submitFinalResult(finalScore, finalCorrect); // Lưu khi hoàn thành
+                submitFinalResult(finalScore, finalCorrect);
                 setGameMode("completed");
               }}
             />
           )}
 
+          {/* ===== GAME 5 - WRITING ===== */}
           {gameMode === "game5" && currentG5Task && (
             <Card style={{ borderRadius: 16, boxShadow: "0 4px 16px rgba(0,0,0,0.04)" }}>
               <div style={{ textAlign: "center", marginBottom: 20 }}>
@@ -422,6 +467,42 @@ export default function QuizPage() {
               </div>
             </Card>
           )}
+
+          {/* ===== GAME 7 - LUYỆN CÂU ===== */}
+          {gameMode === "game7" && (
+            <GameSentencePractice
+              sessionData={sessionData}
+              playAudio={playAudio}
+              onFinishGame={(finalScore, finalCorrect) => {
+                setScore(finalScore);
+                setCorrectCount(finalCorrect);
+                submitFinalResult(finalScore, finalCorrect);
+                setGameMode("completed");
+              }}
+              updateScoreAndCorrect={(pts, correct) => {
+                setScore((prev) => prev + pts);
+                if (correct) setCorrectCount((prev) => prev + 1);
+              }}
+            />
+          )}
+
+          {/* ===== GAME 8 - LUYỆN CHỮ ===== */}
+          {gameMode === "game8" && (
+            <GameCharacterPractice
+              sessionData={sessionData}
+              playAudio={playAudio}
+              onFinishGame={(finalScore, finalCorrect) => {
+                setScore(finalScore);
+                setCorrectCount(finalCorrect);
+                submitFinalResult(finalScore, finalCorrect);
+                setGameMode("completed");
+              }}
+              updateScoreAndCorrect={(pts, correct) => {
+                setScore((prev) => prev + pts);
+                if (correct) setCorrectCount((prev) => prev + 1);
+              }}
+            />
+          )}
         </div>
       )}
 
@@ -432,8 +513,9 @@ export default function QuizPage() {
             title={<span style={{ fontWeight: 800 }}>Hoàn thành xuất sắc phiên luyện tập!</span>}
             subTitle={<div style={{ fontSize: 16, marginTop: 8 }}>Điểm số đạt được: <strong style={{ color: "#fa8c16", fontSize: 20 }}>{score} điểm</strong></div>}
             extra={[
-              <Button type="primary" key="menu" size="large" icon={<ReloadOutlined />} onClick={() => { 
-                fetchSession(); setGameMode("menu"); }} style={{ borderRadius: 8 }}>
+              <Button type="primary" key="menu" size="large" icon={<ReloadOutlined />} onClick={() => {
+                fetchSession(); setGameMode("menu");
+              }} style={{ borderRadius: 8 }}>
                 Về Menu chọn bài khác
               </Button>,
               <Button key="practice" size="large" href="/practice" style={{ borderRadius: 8 }}>
