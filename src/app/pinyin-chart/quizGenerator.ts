@@ -39,7 +39,7 @@ export function buildMeaningfulMixedQuestions(
     const options = [correctTarget, ...wrongOptions].sort(() => 0.5 - Math.random());
 
     return {
-      id: `mixed_${index}_${Date.now()}`,
+      id: index,
       base: item.base,
       tone: item.tone || 1,
       target: correctTarget,
