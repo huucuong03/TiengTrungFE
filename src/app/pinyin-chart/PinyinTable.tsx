@@ -72,7 +72,7 @@ export default function PinyinTable({
       width: 80,
       render: (text: string) => (
         <div
-          onClick={() => playSound(text, 0)}
+          onClick={() => playSound(text, 1)}
           title={`Bấm để nghe Thanh mẫu "${text}"`}
           style={{ cursor: "pointer", fontWeight: 800, fontSize: 16, color: "#1677ff" }}
         >
@@ -178,14 +178,9 @@ export default function PinyinTable({
             onChange={(e) => setSelectedTone(e.target.value)}
             buttonStyle="solid"
           >
-             <Radio.Button value={0}>Gốc (Không dấu)</Radio.Button>
-
             <Radio.Button value={1}>Thanh 1 ( ā )</Radio.Button>
-
             <Radio.Button value={2}>Thanh 2 ( á )</Radio.Button>
-
             <Radio.Button value={3}>Thanh 3 ( ǎ )</Radio.Button>
-
             <Radio.Button value={4}>Thanh 4 ( à )</Radio.Button>
           </Radio.Group>
         </Space>

@@ -54,7 +54,7 @@ export default function PinyinChartPage() {
 
   const [finalMode, setFinalMode] = useState<"basic" | "nasal">("basic");
 
-  const [selectedTone, setSelectedTone] = useState<number>(0);
+  const [selectedTone, setSelectedTone] = useState<number>(1);
 
 
 
@@ -134,28 +134,14 @@ export default function PinyinChartPage() {
 
 
 
-  const playSound = (text: string, tone: number = selectedTone) => {
-
+const playSound = (text: string, tone: number = selectedTone) => {
     const clean = text.trim().toLowerCase();
-
-   
-
-    if (tone === 0) {
-
-      const pronunciation = getPronunciationText(clean, 1);
-
-      playAudio(pronunciation.text);
-
-      return;
-
-    }
-
-
-
-    const pronunciation = getPronunciationText(clean, tone);
-
+    
+    // Đảm bảo luôn lấy chính xác phiên bản có dấu theo đúng thanh điệu được chọn (1, 2, 3, 4)
+    const activeTone = tone >= 1 && tone <= 4 ? tone : 1;
+    const pronunciation = getPronunciationText(clean, activeTone);
+    
     playAudio(pronunciation.text);
-
   };
 
 
