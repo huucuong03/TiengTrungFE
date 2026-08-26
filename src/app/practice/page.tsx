@@ -69,7 +69,7 @@ export default function PracticePage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isHandwritingOpen, setIsHandwritingOpen] = useState(false);
   const [inputChar, setInputChar] = useState("");
-  const [lastSearchedChar, setLastSearchedChar] = useState(""); 
+  const [lastSearchedChar, setLastSearchedChar] = useState("");
   const [searchingMeaning, setSearchingMeaning] = useState(false);
   const [previewWord, setPreviewWord] = useState<LookedUpPreview | null>(null);
   const [savingWord, setSavingWord] = useState(false);
@@ -124,6 +124,10 @@ export default function PracticePage() {
   });
 
   // 2. Tra cứu trực tiếp từ bảng Dictionary trong DB / AI
+  // Trong PracticePage component
+
+  // Sửa hàm handleLookupChar
+  // Sửa handleLookupChar - đảm bảo dữ liệu đầy đủ
   const handleLookupChar = async (charToLookup: string) => {
     const trimmed = charToLookup.trim();
 
@@ -165,11 +169,30 @@ export default function PracticePage() {
       }
 
       const d = resData.data;
+      console.log("[DEBUG] Dictionary response:", d);
+
+      // Đảm bảo các trường có dữ liệu
+      const cleanHanzi = d.hanzi?.trim() || trimmed.trim();
+      const cleanPinyin = d.pinyin?.trim() || "";
+      const cleanMeaning = d.meaning?.trim() || "";
+
+      // Kiểm tra dữ liệu trước khi set
+      if (!cleanPinyin) {
+        message.warning("Không tìm thấy Pinyin cho từ này");
+        setLastSearchedChar("");
+        return;
+      }
+
+      if (!cleanMeaning) {
+        message.warning("Không tìm thấy nghĩa cho từ này");
+        setLastSearchedChar("");
+        return;
+      }
 
       setPreviewWord({
-        hanzi: d.hanzi || trimmed,
-        pinyin: d.pinyin || "",
-        meaning: d.meaning || "",
+        hanzi: cleanHanzi,
+        pinyin: cleanPinyin,
+        meaning: cleanMeaning,
       });
       setLastSearchedChar(trimmed);
     } catch (error) {
@@ -180,42 +203,125 @@ export default function PracticePage() {
       setSearchingMeaning(false);
     }
   };
-
   // 3. Xác nhận lưu từ vào Database
+  // Trong PracticePage component
+
   const handleConfirmSave = async () => {
-    if (!previewWord) return;
+    // === KIỂM TRA KỸ HƠN ===
+    if (!previewWord) {
+      message.warning("Không có dữ liệu từ để thêm");
+      return;
+    }
+
+    // Log để debug
+    console.log("[DEBUG] PreviewWord:", previewWord);
+    console.log("[DEBUG] PreviewWord keys:", Object.keys(previewWord));
+
+    // Kiểm tra từng trường
+    const hanzi = previewWord.hanzi?.trim() || "";
+    const pinyin = previewWord.pinyin?.trim() || "";
+    const meaning = previewWord.meaning?.trim() || "";
+
+    console.log("[DEBUG] Clean data:", { hanzi, pinyin, meaning });
+
+    if (!hanzi) {
+      message.warning("Chữ Hán không được để trống");
+      return;
+    }
+
+    if (!pinyin) {
+      message.warning("Pinyin không được để trống");
+      return;
+    }
+
+    if (!meaning) {
+      message.warning("Nghĩa tiếng Việt không được để trống");
+      return;
+    }
 
     setSavingWord(true);
 
     try {
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        message.error("Vui lòng đăng nhập để thêm từ");
+        setSavingWord(false);
+        return;
+      }
+
+      // === BƯỚC 1: KIỂM TRA TỪ ĐÃ TỒN TẠI ===
+      console.log("[DEBUG] Checking if word exists...");
+      const checkRes = await fetch(
+        `${API_BASE}/words/check?hanzi=${encodeURIComponent(hanzi)}`,
+        {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (checkRes.ok) {
+        const checkData = await checkRes.json();
+        console.log("[DEBUG] Check result:", checkData);
+
+        if (checkData.exists) {
+          message.warning(`Từ "${hanzi}" đã có trong sổ của bạn!`);
+          setSavingWord(false);
+          return;
+        }
+      }
+
+      // === BƯỚC 2: THÊM TỪ MỚI ===
+      const payload = {
+        hanzi: hanzi,
+        pinyin: pinyin,
+        meaning: meaning,
+        hanviet: "",  // Thêm trường này
+        notes: "",    // Thêm trường này
+      };
+
+      console.log("[DEBUG] Sending payload:", JSON.stringify(payload, null, 2));
+
       const res = await fetch(`${API_BASE}/words`, {
         method: "POST",
-        headers: getAuthHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify(previewWord),
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       });
 
-      const resData = await res.json();
+      // Đọc response
+      const responseText = await res.text();
+      console.log("[DEBUG] Response status:", res.status);
+      console.log("[DEBUG] Response body:", responseText);
 
       if (res.ok) {
-        message.success(`Đã thêm "${previewWord.hanzi}" vào Sổ luyện tập!`);
-
+        const resData = JSON.parse(responseText);
+        message.success(`Đã thêm "${hanzi}" vào Sổ luyện tập!`);
         setIsAddModalOpen(false);
         setInputChar("");
         setLastSearchedChar("");
         setPreviewWord(null);
-
         fetchWords();
       } else {
-        message.warning(resData.detail || "Từ này đã có trong sổ");
+        let errorMsg = "Lỗi không xác định";
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMsg = errorData.detail || errorData.message || errorMsg;
+        } catch (e) {
+          errorMsg = responseText || errorMsg;
+        }
+        message.error(errorMsg);
       }
     } catch (error) {
-      console.error(error);
-      message.error("Lỗi khi lưu vào database");
+      console.error("[DEBUG] Network error:", error);
+      message.error("Lỗi khi kết nối đến server");
     } finally {
       setSavingWord(false);
     }
   };
-
   // 4. Xóa từ khỏi Database
   const handleDeleteWord = async (id: number) => {
     try {

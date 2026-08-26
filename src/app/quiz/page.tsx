@@ -130,14 +130,23 @@ export default function QuizPage() {
     const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
     if (!token) return;
 
+    // Lấy danh sách ID các từ vựng của phiên hiện tại từ sessionData
+    const wordIds = sessionData?.session_word_ids || [];
+
     try {
       await fetch("https://tiengtrung-7hto.onrender.com/api/notebook/quiz/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ score: finalScore, correct_count: finalCorrect, total_words: 15, game_mode: gameMode }),
+        body: JSON.stringify({ 
+          score: finalScore, 
+          correct_count: finalCorrect, 
+          total_words: wordIds.length || 15, 
+          game_mode: gameMode,
+          word_ids: wordIds // 👈 Bổ sung mảng ID từ vựng vào đây để tăng điểm thành thạo!
+        }),
       });
-      fetchStats();
-      message.success("Đã lưu kết quả phiên luyện tập vào hệ thống!");
+      fetchStats(); // Tải lại thống kê ngay sau khi submit thành công
+      message.success("Đã cập nhật điểm thành thạo cho từ vựng!");
     } catch (e) {
       console.error(e);
     }
@@ -226,153 +235,153 @@ export default function QuizPage() {
           </div>
 
           {stats && (
-  <>
-    {/* Hàng 1: Mục tiêu ngày + ĐTB + Tổng từ */}
-    <Row gutter={[16, 16]}>
-      <Col xs={24} sm={8}>
-        <Card style={{ borderRadius: 14, border: "1px solid #d9f7be", background: "linear-gradient(135deg, #f6ffed 0%, #ffffff 100%)" }}>
-          <Statistic
-            title={<span style={{ fontWeight: 600, color: "#389e0d" }}>Mục tiêu ngày</span>}
-            value={stats.today.completed_sessions}
-            suffix={`/ 5 lần`}
-            styles={{ content: { color: "#52c41a", fontWeight: 800 } }}
-            prefix={<CheckCircleOutlined />}
-          />
-          <Progress percent={Math.min(100, Math.round((stats.today.completed_sessions / 5) * 100))} strokeColor="#52c41a" style={{ marginTop: 8 }} />
-        </Card>
-      </Col>
-      <Col xs={24} sm={8}>
-        <Card style={{ borderRadius: 14, border: "1px solid #ffe58f", background: "linear-gradient(135deg, #fffbe6 0%, #ffffff 100%)" }}>
-          <Statistic
-            title={<span style={{ fontWeight: 600, color: "#d46b08" }}>ĐTB Hôm nay</span>}
-            value={stats.today.avg_score}
-            precision={1}
-            suffix="/ 100"
-            styles={{ content: { color: "#fa8c16", fontWeight: 800 } }}
-            prefix={<TrophyOutlined />}
-          />
-        </Card>
-      </Col>
-      <Col xs={24} sm={8}>
-        <Card style={{ borderRadius: 14, border: "1px solid #d6e4ff", background: "linear-gradient(135deg, #f0f5ff 0%, #ffffff 100%)" }}>
-          <Statistic
-            title={<span style={{ fontWeight: 600, color: "#1d39c4" }}>Tổng từ</span>}
-            value={stats?.mastery?.total_words || 0}
-            suffix="từ"
-            styles={{ content: { color: "#2f54eb", fontWeight: 800 } }}
-            prefix={<BookOutlined />}
-          />
-        </Card>
-      </Col>
-    </Row>
+            <>
+              {/* Hàng 1: Mục tiêu ngày + ĐTB + Tổng từ */}
+              <Row gutter={[16, 16]}>
+                <Col xs={24} sm={8}>
+                  <Card style={{ borderRadius: 14, border: "1px solid #d9f7be", background: "linear-gradient(135deg, #f6ffed 0%, #ffffff 100%)" }}>
+                    <Statistic
+                      title={<span style={{ fontWeight: 600, color: "#389e0d" }}>Mục tiêu ngày</span>}
+                      value={stats.today.completed_sessions}
+                      suffix={`/ 5 lần`}
+                      styles={{ content: { color: "#52c41a", fontWeight: 800 } }}
+                      prefix={<CheckCircleOutlined />}
+                    />
+                    <Progress percent={Math.min(100, Math.round((stats.today.completed_sessions / 5) * 100))} strokeColor="#52c41a" style={{ marginTop: 8 }} />
+                  </Card>
+                </Col>
+                <Col xs={24} sm={8}>
+                  <Card style={{ borderRadius: 14, border: "1px solid #ffe58f", background: "linear-gradient(135deg, #fffbe6 0%, #ffffff 100%)" }}>
+                    <Statistic
+                      title={<span style={{ fontWeight: 600, color: "#d46b08" }}>ĐTB Hôm nay</span>}
+                      value={stats.today.avg_score}
+                      precision={1}
+                      suffix="/ 100"
+                      styles={{ content: { color: "#fa8c16", fontWeight: 800 } }}
+                      prefix={<TrophyOutlined />}
+                    />
+                  </Card>
+                </Col>
+                <Col xs={24} sm={8}>
+                  <Card style={{ borderRadius: 14, border: "1px solid #d6e4ff", background: "linear-gradient(135deg, #f0f5ff 0%, #ffffff 100%)" }}>
+                    <Statistic
+                      title={<span style={{ fontWeight: 600, color: "#1d39c4" }}>Tổng từ</span>}
+                      value={stats?.mastery?.total_words || 0}
+                      suffix="từ"
+                      styles={{ content: { color: "#2f54eb", fontWeight: 800 } }}
+                      prefix={<BookOutlined />}
+                    />
+                  </Card>
+                </Col>
+              </Row>
 
-    {/* Hàng 2: 3 kỹ năng thành thạo */}
-    <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-      <Col xs={24} sm={8}>
-        <Card style={{ borderRadius: 14, border: "1px solid #d6e4ff", background: "linear-gradient(135deg, #f0f5ff 0%, #ffffff 100%)" }}>
-          <Statistic
-            title={<span style={{ fontWeight: 600, color: "#1d39c4" }}>🀄 Nhận diện chữ</span>}
-            value={stats?.mastery?.hanzi_mastered || 0}
-            suffix="từ"
-            styles={{ content: { color: "#2f54eb", fontWeight: 800 } }}
-          />
-          <Progress 
-            percent={stats?.mastery?.total_words > 0 ? Math.round((stats.mastery.hanzi_mastered / stats.mastery.total_words) * 100) : 0} 
-            size="small" 
-            strokeColor="#1677ff"
-            style={{ marginTop: 8 }}
-          />
-        </Card>
-      </Col>
-      <Col xs={24} sm={8}>
-        <Card style={{ borderRadius: 14, border: "1px solid #d9f7be", background: "linear-gradient(135deg, #f6ffed 0%, #ffffff 100%)" }}>
-          <Statistic
-            title={<span style={{ fontWeight: 600, color: "#389e0d" }}>🔤 Phát âm</span>}
-            value={stats?.mastery?.pinyin_mastered || 0}
-            suffix="từ"
-            styles={{ content: { color: "#52c41a", fontWeight: 800 } }}
-          />
-          <Progress 
-            percent={stats?.mastery?.total_words > 0 ? Math.round((stats.mastery.pinyin_mastered / stats.mastery.total_words) * 100) : 0} 
-            size="small" 
-            strokeColor="#52c41a"
-            style={{ marginTop: 8 }}
-          />
-        </Card>
-      </Col>
-      <Col xs={24} sm={8}>
-        <Card style={{ borderRadius: 14, border: "1px solid #ffe58f", background: "linear-gradient(135deg, #fffbe6 0%, #ffffff 100%)" }}>
-          <Statistic
-            title={<span style={{ fontWeight: 600, color: "#d46b08" }}>📖 Hiểu nghĩa</span>}
-            value={stats?.mastery?.meaning_mastered || 0}
-            suffix="từ"
-            styles={{ content: { color: "#fa8c16", fontWeight: 800 } }}
-          />
-          <Progress 
-            percent={stats?.mastery?.total_words > 0 ? Math.round((stats.mastery.meaning_mastered / stats.mastery.total_words) * 100) : 0} 
-            size="small" 
-            strokeColor="#faad14"
-            style={{ marginTop: 8 }}
-          />
-        </Card>
-      </Col>
-    </Row>
-  </>
-)}
+              {/* Hàng 2: 3 kỹ năng thành thạo */}
+              <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                <Col xs={24} sm={8}>
+                  <Card style={{ borderRadius: 14, border: "1px solid #d6e4ff", background: "linear-gradient(135deg, #f0f5ff 0%, #ffffff 100%)" }}>
+                    <Statistic
+                      title={<span style={{ fontWeight: 600, color: "#1d39c4" }}>🀄 Nhận diện chữ</span>}
+                      value={stats?.mastery?.hanzi_mastered || 0}
+                      suffix="từ"
+                      styles={{ content: { color: "#2f54eb", fontWeight: 800 } }}
+                    />
+                    <Progress
+                      percent={stats?.mastery?.total_words > 0 ? Math.round((stats.mastery.hanzi_mastered / stats.mastery.total_words) * 100) : 0}
+                      size="small"
+                      strokeColor="#1677ff"
+                      style={{ marginTop: 8 }}
+                    />
+                  </Card>
+                </Col>
+                <Col xs={24} sm={8}>
+                  <Card style={{ borderRadius: 14, border: "1px solid #d9f7be", background: "linear-gradient(135deg, #f6ffed 0%, #ffffff 100%)" }}>
+                    <Statistic
+                      title={<span style={{ fontWeight: 600, color: "#389e0d" }}>🔤 Phát âm</span>}
+                      value={stats?.mastery?.pinyin_mastered || 0}
+                      suffix="từ"
+                      styles={{ content: { color: "#52c41a", fontWeight: 800 } }}
+                    />
+                    <Progress
+                      percent={stats?.mastery?.total_words > 0 ? Math.round((stats.mastery.pinyin_mastered / stats.mastery.total_words) * 100) : 0}
+                      size="small"
+                      strokeColor="#52c41a"
+                      style={{ marginTop: 8 }}
+                    />
+                  </Card>
+                </Col>
+                <Col xs={24} sm={8}>
+                  <Card style={{ borderRadius: 14, border: "1px solid #ffe58f", background: "linear-gradient(135deg, #fffbe6 0%, #ffffff 100%)" }}>
+                    <Statistic
+                      title={<span style={{ fontWeight: 600, color: "#d46b08" }}>📖 Hiểu nghĩa</span>}
+                      value={stats?.mastery?.meaning_mastered || 0}
+                      suffix="từ"
+                      styles={{ content: { color: "#fa8c16", fontWeight: 800 } }}
+                    />
+                    <Progress
+                      percent={stats?.mastery?.total_words > 0 ? Math.round((stats.mastery.meaning_mastered / stats.mastery.total_words) * 100) : 0}
+                      size="small"
+                      strokeColor="#faad14"
+                      style={{ marginTop: 8 }}
+                    />
+                  </Card>
+                </Col>
+              </Row>
+            </>
+          )}
 
-{/* ✅ THÊM: 3 kỹ năng thành thạo */}
-{stats && (
-  <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-    <Col xs={24} sm={8}>
-      <Card style={{ borderRadius: 14, border: "1px solid #d6e4ff", background: "linear-gradient(135deg, #f0f5ff 0%, #ffffff 100%)" }}>
-        <Statistic
-          title={<span style={{ fontWeight: 600, color: "#1d39c4" }}>🀄 Nhận diện chữ</span>}
-          value={stats?.mastery?.hanzi_mastered || 0}
-          suffix="từ"
-          styles={{ content: { color: "#2f54eb", fontWeight: 800 } }}
-        />
-        <Progress 
-          percent={stats?.mastery?.total_words > 0 ? Math.round((stats.mastery.hanzi_mastered / stats.mastery.total_words) * 100) : 0} 
-          size="small" 
-          strokeColor="#1677ff"
-          style={{ marginTop: 8 }}
-        />
-      </Card>
-    </Col>
-    <Col xs={24} sm={8}>
-      <Card style={{ borderRadius: 14, border: "1px solid #d9f7be", background: "linear-gradient(135deg, #f6ffed 0%, #ffffff 100%)" }}>
-        <Statistic
-          title={<span style={{ fontWeight: 600, color: "#389e0d" }}>🔤 Phát âm</span>}
-          value={stats?.mastery?.pinyin_mastered || 0}
-          suffix="từ"
-          styles={{ content: { color: "#52c41a", fontWeight: 800 } }}
-        />
-        <Progress 
-          percent={stats?.mastery?.total_words > 0 ? Math.round((stats.mastery.pinyin_mastered / stats.mastery.total_words) * 100) : 0} 
-          size="small" 
-          strokeColor="#52c41a"
-          style={{ marginTop: 8 }}
-        />
-      </Card>
-    </Col>
-    <Col xs={24} sm={8}>
-      <Card style={{ borderRadius: 14, border: "1px solid #ffe58f", background: "linear-gradient(135deg, #fffbe6 0%, #ffffff 100%)" }}>
-        <Statistic
-          title={<span style={{ fontWeight: 600, color: "#d46b08" }}>📖 Hiểu nghĩa</span>}
-          value={stats?.mastery?.meaning_mastered || 0}
-          suffix="từ"
-          styles={{ content: { color: "#fa8c16", fontWeight: 800 } }}
-        />
-        <Progress 
-          percent={stats?.mastery?.total_words > 0 ? Math.round((stats.mastery.meaning_mastered / stats.mastery.total_words) * 100) : 0} 
-          size="small" 
-          strokeColor="#faad14"
-          style={{ marginTop: 8 }}
-        />
-      </Card>
-    </Col>
-  </Row>
-)}
+          {/* ✅ THÊM: 3 kỹ năng thành thạo */}
+          {stats && (
+            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+              <Col xs={24} sm={8}>
+                <Card style={{ borderRadius: 14, border: "1px solid #d6e4ff", background: "linear-gradient(135deg, #f0f5ff 0%, #ffffff 100%)" }}>
+                  <Statistic
+                    title={<span style={{ fontWeight: 600, color: "#1d39c4" }}>🀄 Nhận diện chữ</span>}
+                    value={stats?.mastery?.hanzi_mastered || 0}
+                    suffix="từ"
+                    styles={{ content: { color: "#2f54eb", fontWeight: 800 } }}
+                  />
+                  <Progress
+                    percent={stats?.mastery?.total_words > 0 ? Math.round((stats.mastery.hanzi_mastered / stats.mastery.total_words) * 100) : 0}
+                    size="small"
+                    strokeColor="#1677ff"
+                    style={{ marginTop: 8 }}
+                  />
+                </Card>
+              </Col>
+              <Col xs={24} sm={8}>
+                <Card style={{ borderRadius: 14, border: "1px solid #d9f7be", background: "linear-gradient(135deg, #f6ffed 0%, #ffffff 100%)" }}>
+                  <Statistic
+                    title={<span style={{ fontWeight: 600, color: "#389e0d" }}>🔤 Phát âm</span>}
+                    value={stats?.mastery?.pinyin_mastered || 0}
+                    suffix="từ"
+                    styles={{ content: { color: "#52c41a", fontWeight: 800 } }}
+                  />
+                  <Progress
+                    percent={stats?.mastery?.total_words > 0 ? Math.round((stats.mastery.pinyin_mastered / stats.mastery.total_words) * 100) : 0}
+                    size="small"
+                    strokeColor="#52c41a"
+                    style={{ marginTop: 8 }}
+                  />
+                </Card>
+              </Col>
+              <Col xs={24} sm={8}>
+                <Card style={{ borderRadius: 14, border: "1px solid #ffe58f", background: "linear-gradient(135deg, #fffbe6 0%, #ffffff 100%)" }}>
+                  <Statistic
+                    title={<span style={{ fontWeight: 600, color: "#d46b08" }}>📖 Hiểu nghĩa</span>}
+                    value={stats?.mastery?.meaning_mastered || 0}
+                    suffix="từ"
+                    styles={{ content: { color: "#fa8c16", fontWeight: 800 } }}
+                  />
+                  <Progress
+                    percent={stats?.mastery?.total_words > 0 ? Math.round((stats.mastery.meaning_mastered / stats.mastery.total_words) * 100) : 0}
+                    size="small"
+                    strokeColor="#faad14"
+                    style={{ marginTop: 8 }}
+                  />
+                </Card>
+              </Col>
+            </Row>
+          )}
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20, marginTop: 8 }}>
             {/* Game 1 */}
