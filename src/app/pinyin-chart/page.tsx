@@ -55,9 +55,6 @@ export default function PinyinChartPage() {
     }
   };
 
-  // -------------------------------------------------------------
-  // HOOK TỰ ĐỘNG XỬ LÝ KHI RỜI TRANG / CHUYỂN TAB / ĐÓNG TRÌNH DUYỆT
-  // -------------------------------------------------------------
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isGameRunning && !isQuizFinished) {
@@ -79,7 +76,6 @@ export default function PinyinChartPage() {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       clearAllTimers();
-      setIsGameRunning(false);
     };
   }, [isGameRunning, isQuizFinished]);
 
@@ -135,37 +131,77 @@ export default function PinyinChartPage() {
     }, 2500);
   };
 
-  // Lấy danh sách âm tiết hợp lệ từ data
-  const getAllValidSyllables = (): string[] => {
-    const syllables: string[] = [];
-    data.rows.forEach((row: any) => {
-      Object.keys(row).forEach((key) => {
-        if (key !== "group" && key !== "initial") {
-          const val = row[key];
-          if (typeof val === "string" && val.trim()) {
-            syllables.push(val.trim());
-          }
-        }
+  // Hàm tạo câu hỏi mẫu đơn giản để test
+  const generateSampleQuestions = (): QuestionItem[] => {
+    const sampleData = [
+      { base: "ma", tone: 1, target: "mā", hanzi: "妈", meaning: "Mẹ" },
+      { base: "ma", tone: 2, target: "má", hanzi: "麻", meaning: "Cây gai" },
+      { base: "ma", tone: 3, target: "mǎ", hanzi: "马", meaning: "Con ngựa" },
+      { base: "ma", tone: 4, target: "mà", hanzi: "骂", meaning: "Mắng" },
+      { base: "ba", tone: 1, target: "bā", hanzi: "八", meaning: "Tám" },
+      { base: "ba", tone: 2, target: "bá", hanzi: "拔", meaning: "Nhổ" },
+      { base: "ba", tone: 3, target: "bǎ", hanzi: "把", meaning: "Cầm" },
+      { base: "ba", tone: 4, target: "bà", hanzi: "爸", meaning: "Bố" },
+      { base: "da", tone: 1, target: "dā", hanzi: "搭", meaning: "Dựng" },
+      { base: "da", tone: 2, target: "dá", hanzi: "答", meaning: "Trả lời" },
+      { base: "da", tone: 3, target: "dǎ", hanzi: "打", meaning: "Đánh" },
+      { base: "da", tone: 4, target: "dà", hanzi: "大", meaning: "Lớn" },
+      { base: "na", tone: 1, target: "nā", hanzi: "那", meaning: "Kia" },
+      { base: "na", tone: 2, target: "ná", hanzi: "拿", meaning: "Cầm" },
+      { base: "na", tone: 3, target: "nǎ", hanzi: "哪", meaning: "Nào" },
+      { base: "na", tone: 4, target: "nà", hanzi: "那", meaning: "Đó" },
+      { base: "la", tone: 1, target: "lā", hanzi: "拉", meaning: "Kéo" },
+      { base: "la", tone: 2, target: "lá", hanzi: "剌", meaning: "Châm" },
+      { base: "la", tone: 3, target: "lǎ", hanzi: "喇", meaning: "Kèn" },
+      { base: "la", tone: 4, target: "là", hanzi: "辣", meaning: "Cay" },
+    ];
+
+    const questions: QuestionItem[] = [];
+    const shuffled = [...sampleData].sort(() => 0.5 - Math.random());
+    
+    for (let i = 0; i < Math.min(TOTAL_QUESTIONS, shuffled.length); i++) {
+      const item = shuffled[i];
+      const options = [item.target];
+      
+      // Thêm 3 đáp án nhiễu
+      const others = sampleData.filter(d => d.target !== item.target).sort(() => 0.5 - Math.random());
+      for (let j = 0; j < 3 && j < others.length; j++) {
+        options.push(others[j].target);
+      }
+      
+      questions.push({
+        id: i,
+        target: item.target,
+        base: item.base,
+        tone: item.tone,
+        options: options.sort(() => 0.5 - Math.random()),
+        hanzi: item.hanzi,
+        meaning: item.meaning,
       });
-    });
-    return Array.from(new Set(syllables));
+    }
+    
+    return questions;
   };
 
   const startQuiz = async (mode: ListeningMode = "mixed") => {
+    console.log("🚀 Bắt đầu quiz với mode:", mode);
+    
     // Reset tất cả state
     clearAllTimers();
     setListeningMode(mode);
-    setLoading(true);
     setIsQuizFinished(false);
-    setIsGameRunning(false); // Tạm thời tắt game để reset
+    setIsGameRunning(false);
+    setLoading(true);
 
     try {
       let questions: QuestionItem[] = [];
 
       // Thử gọi API
       try {
+        console.log("📡 Đang gọi API...");
         const res = await fetch(`https://tiengtrung-7hto.onrender.com/api/dictionary/pinyin-drills?mode=mixed`);
         const resData = await res.json();
+        console.log("📡 API response:", resData);
 
         if (res.ok && resData.success && resData.questions?.length > 0) {
           questions = resData.questions.map((q: any) => ({
@@ -177,17 +213,20 @@ export default function PinyinChartPage() {
             hanzi: q.hanzi ? String(q.hanzi) : getHanziForTone(String(q.base_pinyin), Number(q.tone)),
             meaning: q.meaning ? String(q.meaning) : undefined,
           }));
+          console.log("✅ API trả về", questions.length, "câu hỏi");
         }
       } catch (apiError) {
-        console.log("API không hoạt động, sử dụng fallback:", apiError);
+        console.log("⚠️ API không hoạt động, sử dụng fallback:", apiError);
       }
 
-      // Nếu API không trả về câu hỏi, dùng fallback
+      // Nếu API không trả về câu hỏi, dùng mẫu
       if (!questions || questions.length === 0) {
-        questions = buildRandomQuestionsFallback();
+        console.log("📝 Tạo câu hỏi mẫu...");
+        questions = generateSampleQuestions();
+        console.log("✅ Đã tạo", questions.length, "câu hỏi mẫu");
       }
 
-      // Đảm bảo có đủ câu hỏi
+      // Đảm bảo có câu hỏi
       if (!questions || questions.length === 0) {
         throw new Error("Không thể tạo câu hỏi");
       }
@@ -202,272 +241,25 @@ export default function PinyinChartPage() {
       setTimeLeft(THINKING_TIME_LIMIT);
       setExplanationTimeLeft(EXPLANATION_TIME);
       
-      // BẮT ĐẦU GAME - ĐẢM BẢO currentQ có giá trị
+      // BẮT ĐẦU GAME
+      console.log("🎮 Bắt đầu game với", questions.length, "câu hỏi");
       setIsGameRunning(true);
-      setIsQuizFinished(false);
 
-      // Phát âm câu hỏi đầu tiên sau khi game đã chạy
+      // Phát âm câu hỏi đầu tiên
       if (questions.length > 0 && questions[0].base) {
         setTimeout(() => {
-          if (isGameRunning) {
-            playAudioTwiceWith2sInterval(questions[0].base, questions[0].tone);
-          }
+          console.log("🔊 Phát âm câu hỏi 1:", questions[0].base, questions[0].tone);
+          playAudioTwiceWith2sInterval(questions[0].base, questions[0].tone);
         }, 500);
       }
 
     } catch (error) {
-      console.error("Lỗi khi tạo câu hỏi:", error);
+      console.error("❌ Lỗi khi tạo câu hỏi:", error);
       message.error("Không thể tạo câu hỏi. Vui lòng thử lại!");
       setIsGameRunning(false);
     } finally {
       setLoading(false);
     }
-  };
-
-  const buildRandomQuestionsFallback = (): QuestionItem[] => {
-    const pool = getAllValidSyllables();
-    
-    // Nếu không có dữ liệu, dùng danh sách mặc định
-    if (pool.length === 0) {
-      console.warn("Không có dữ liệu âm tiết, sử dụng danh sách mặc định");
-      const defaultPool = ["ba", "ma", "da", "na", "la", "ga", "ka", "ha", "ji", "qi", "xi", "zhi", "chi", "shi", "ri", "zi", "ci", "si", "yi", "wu", "yu", "ye", "yue", "yuan", "yin", "yun", "ying"];
-      defaultPool.forEach(s => pool.push(s));
-    }
-
-    const generated: QuestionItem[] = [];
-
-    // ✅ MỞ RỘNG: Nhóm âm dễ nhầm
-    const confusingGroups: Record<string, string[]> = {
-      z: ["c", "s", "zh"],
-      c: ["z", "s", "ch"],
-      s: ["z", "c", "sh"],
-      zh: ["ch", "sh", "z"],
-      ch: ["zh", "sh", "c"],
-      sh: ["zh", "ch", "s"],
-      b: ["p", "m", "f"],
-      p: ["b", "f", "m"],
-      m: ["b", "p", "n"],
-      f: ["b", "p", "h"],
-      d: ["t", "n", "l"],
-      t: ["d", "l", "n"],
-      n: ["d", "t", "l"],
-      l: ["d", "t", "n"],
-      g: ["k", "h"],
-      k: ["g", "h"],
-      h: ["g", "k", "f"],
-      j: ["q", "x", "zh"],
-      q: ["j", "x", "ch"],
-      x: ["j", "q", "sh"],
-      r: ["l", "n", "y"],
-      y: ["w", "r", "l"],
-      w: ["y", "r", "m"],
-      a: ["ai", "an", "ang", "ao"],
-      o: ["ou", "ong", "uo"],
-      e: ["ei", "en", "eng", "er"],
-      i: ["ia", "ian", "iang", "iao", "ie", "in", "ing", "iong", "iu"],
-      u: ["ua", "uai", "uan", "uang", "ui", "un", "uo", "ong"],
-      ü: ["üan", "üe", "ün", "iong"],
-      an: ["ang", "en", "ian", "uan"],
-      ang: ["an", "eng", "iang", "uang"],
-      en: ["eng", "an", "in", "un"],
-      eng: ["en", "ang", "ing", "ong"],
-      in: ["ing", "en", "ian"],
-      ing: ["in", "eng", "iang"],
-      un: ["ong", "en", "uan"],
-      ong: ["un", "eng", "iong"],
-      ai: ["ei", "an", "ao"],
-      ei: ["ai", "en", "ui"],
-      ao: ["ou", "an", "iao"],
-      ou: ["ao", "un", "iu"],
-      ia: ["ian", "iang", "ie", "iao"],
-      ie: ["ia", "ian", "üe"],
-      ua: ["uan", "uang", "uo"],
-      uo: ["ua", "uan", "ou"],
-      üe: ["ie", "üan", "ün"],
-      iao: ["iao", "iu", "ian"],
-      iu: ["iu", "iao", "iou"],
-      ui: ["ui", "ei", "un"],
-      uai: ["uai", "uan", "uang"],
-      ian: ["ian", "iang", "in", "uan"],
-      iang: ["iang", "ian", "uang", "ing"],
-      uan: ["uan", "uang", "un", "ian"],
-      uang: ["uang", "uan", "iang"],
-      üan: ["üan", "üe", "ün", "uan"],
-      ün: ["ün", "üan", "in", "un"],
-      iong: ["iong", "ong", "ing"],
-    };
-
-    const similarSyllables: Record<string, string[]> = {
-      "shi": ["si", "chi", "zhi", "xi"],
-      "si": ["shi", "ci", "zi", "xi"],
-      "chi": ["shi", "qi", "zhi", "ci"],
-      "zi": ["zhi", "ci", "si"],
-      "ci": ["si", "chi", "zi"],
-      "zhi": ["shi", "chi", "zi"],
-      "ji": ["qi", "xi", "zhi"],
-      "qi": ["ji", "xi", "chi"],
-      "xi": ["ji", "qi", "shi"],
-      "ju": ["qu", "xu", "zhu"],
-      "qu": ["ju", "xu", "chu"],
-      "xu": ["ju", "qu", "shu"],
-      "ban": ["ben", "bin", "bang"],
-      "ben": ["ban", "bin", "beng"],
-      "bin": ["ban", "ben", "bing"],
-      "bang": ["beng", "bing", "ban"],
-      "beng": ["bang", "bing", "ben"],
-      "bing": ["bin", "bang", "beng"],
-      "dan": ["dang", "den", "deng"],
-      "dang": ["dan", "deng", "dong"],
-      "deng": ["dang", "dong", "den"],
-      "dong": ["deng", "dang", "dun"],
-      "tian": ["tiao", "tie", "ting"],
-      "tiao": ["tian", "tie", "ting"],
-      "tie": ["tian", "tiao", "ting"],
-      "ting": ["tian", "tiao", "tie"],
-      "guan": ["guang", "gun", "guai"],
-      "guang": ["guan", "guai", "gun"],
-      "guai": ["guan", "guang", "gua"],
-      "gun": ["guan", "guang"],
-    };
-
-    const getInitial = (syllable: string): string => {
-      const match = syllable.match(/^([bpmfdtnlgkhjqxzcsryw]+)/);
-      return match ? match[0] : "";
-    };
-
-    const getFinal = (syllable: string): string => {
-      const initial = getInitial(syllable);
-      return syllable.replace(initial, "");
-    };
-
-    const getValidTones = (syllable: string): number[] => {
-      const tones: number[] = [];
-      for (let t = 1; t <= 4; t++) {
-        const hanzi = getHanziForTone(syllable, t);
-        if (hanzi && hanzi !== "—" && hanzi !== "——") {
-          tones.push(t);
-        }
-      }
-      return tones;
-    };
-
-    // Tạo câu hỏi
-    for (let i = 0; i < TOTAL_QUESTIONS; i++) {
-      let baseTarget = pool[Math.floor(Math.random() * pool.length)] || "ba";
-      let attempts = 0;
-      while (attempts < 20) {
-        const validTones = getValidTones(baseTarget);
-        if (validTones.length >= 2) break;
-        baseTarget = pool[Math.floor(Math.random() * pool.length)] || "ba";
-        attempts++;
-      }
-
-      const validTones = getValidTones(baseTarget);
-      const chosenTone = validTones.length > 0
-        ? validTones[Math.floor(Math.random() * validTones.length)]
-        : Math.floor(Math.random() * 4) + 1;
-
-      const targetWithTone = applyToneToSyllable(baseTarget, chosenTone);
-      const distractorSet = new Set<string>();
-
-      // Các bẫy
-      const otherTones = [1, 2, 3, 4].filter((t) => t !== chosenTone);
-      for (const ot of otherTones) {
-        const hanzi = getHanziForTone(baseTarget, ot);
-        if (hanzi && hanzi !== "—" && hanzi !== "——") {
-          distractorSet.add(applyToneToSyllable(baseTarget, ot));
-        }
-      }
-
-      const initial = getInitial(baseTarget);
-      const confuseInitials = confusingGroups[initial] || [];
-      for (const ci of confuseInitials) {
-        const confusedBase = baseTarget.replace(initial, ci);
-        if (pool.includes(confusedBase)) {
-          const hanzi = getHanziForTone(confusedBase, chosenTone);
-          if (hanzi && hanzi !== "—" && hanzi !== "——") {
-            distractorSet.add(applyToneToSyllable(confusedBase, chosenTone));
-          }
-        }
-      }
-
-      const finalPart = getFinal(baseTarget);
-      const confuseFinals = confusingGroups[finalPart] || [];
-      for (const cf of confuseFinals) {
-        const confusedBase = initial + cf;
-        if (pool.includes(confusedBase)) {
-          const hanzi = getHanziForTone(confusedBase, chosenTone);
-          if (hanzi && hanzi !== "—" && hanzi !== "——") {
-            distractorSet.add(applyToneToSyllable(confusedBase, chosenTone));
-          }
-        }
-      }
-
-      const similar = similarSyllables[baseTarget] || [];
-      for (const sim of similar) {
-        if (pool.includes(sim)) {
-          const hanzi = getHanziForTone(sim, chosenTone);
-          if (hanzi && hanzi !== "—" && hanzi !== "——") {
-            distractorSet.add(applyToneToSyllable(sim, chosenTone));
-          }
-        }
-      }
-
-      const oppositeTones: Record<number, number> = { 1: 4, 2: 3, 3: 2, 4: 1 };
-      const oppTone = oppositeTones[chosenTone];
-      if (oppTone) {
-        const oppHanzi = getHanziForTone(baseTarget, oppTone);
-        if (oppHanzi && oppHanzi !== "—" && oppHanzi !== "——") {
-          distractorSet.add(applyToneToSyllable(baseTarget, oppTone));
-        }
-      }
-
-      const remainingPool = pool.filter((s) => s !== baseTarget);
-      let fallbackAttempts = 0;
-      while (distractorSet.size < 3 && remainingPool.length > 0 && fallbackAttempts < 30) {
-        const randBase = remainingPool[Math.floor(Math.random() * remainingPool.length)];
-        const hanzi = getHanziForTone(randBase, chosenTone);
-        if (hanzi && hanzi !== "—" && hanzi !== "——") {
-          const candidate = applyToneToSyllable(randBase, chosenTone);
-          if (!distractorSet.has(candidate)) {
-            distractorSet.add(candidate);
-          }
-        }
-        fallbackAttempts++;
-      }
-
-      const optionsArray = [targetWithTone, ...Array.from(distractorSet)];
-      while (optionsArray.length < 4) {
-        const randomBase = pool[Math.floor(Math.random() * pool.length)] || "ba";
-        const hanzi = getHanziForTone(randomBase, chosenTone);
-        if (hanzi && hanzi !== "—" && hanzi !== "——") {
-          const candidate = applyToneToSyllable(randomBase, chosenTone);
-          if (!optionsArray.includes(candidate)) {
-            optionsArray.push(candidate);
-          }
-        } else {
-          const fallback = pool[Math.floor(Math.random() * pool.length)] || "ma";
-          const candidate = applyToneToSyllable(fallback, chosenTone);
-          if (!optionsArray.includes(candidate)) {
-            optionsArray.push(candidate);
-          }
-        }
-      }
-
-      const options = optionsArray.sort(() => 0.5 - Math.random());
-      const hanzi = getHanziForTone(baseTarget, chosenTone);
-
-      generated.push({
-        target: targetWithTone,
-        base: baseTarget,
-        tone: chosenTone,
-        options,
-        hanzi: hanzi || undefined,
-        meaning: hanzi ? `Từ vựng Hán ngữ` : undefined,
-      });
-    }
-
-    return generated;
   };
 
   const currentQ = questionList[quizIndex];
@@ -476,11 +268,14 @@ export default function PinyinChartPage() {
   useEffect(() => {
     if (!isGameRunning || quizChecked || isQuizFinished || !currentQ) return;
     
+    console.log("⏰ Bắt đầu timer cho câu", quizIndex + 1);
+    
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timerRef.current!);
           if (!quizChecked && currentQ) {
+            console.log("⏰ Hết giờ!");
             setQuizChecked(true);
             setQuizSelected("Hết giờ");
             setQuizHistory((prevHistory) => [
@@ -501,6 +296,7 @@ export default function PinyinChartPage() {
   useEffect(() => {
     if (!isGameRunning || !quizChecked || isQuizFinished) return;
     
+    console.log("📖 Bắt đầu giải thích");
     setExplanationTimeLeft(EXPLANATION_TIME);
     explanationTimerRef.current = setInterval(() => {
       setExplanationTimeLeft((prev) => {
@@ -520,6 +316,7 @@ export default function PinyinChartPage() {
     if (quizChecked || !currentQ) return;
     if (timerRef.current) clearInterval(timerRef.current);
 
+    console.log("🎯 Chọn đáp án:", selectedOption);
     setQuizChecked(true);
     setQuizSelected(selectedOption);
     const isCorrect = selectedOption === currentQ.target;
@@ -534,14 +331,19 @@ export default function PinyinChartPage() {
   const advanceToNextQuestion = () => {
     if (quizIndex < questionList.length - 1) {
       const nextIdx = quizIndex + 1;
+      console.log("➡️ Chuyển sang câu", nextIdx + 1);
       setQuizIndex(nextIdx);
       setQuizSelected("");
       setQuizChecked(false);
       setTimeLeft(THINKING_TIME_LIMIT);
       if (questionList[nextIdx] && questionList[nextIdx].base) {
-        setTimeout(() => playAudioTwiceWith2sInterval(questionList[nextIdx].base, questionList[nextIdx].tone), 300);
+        setTimeout(() => {
+          console.log("🔊 Phát âm câu", nextIdx + 1, ":", questionList[nextIdx].base, questionList[nextIdx].tone);
+          playAudioTwiceWith2sInterval(questionList[nextIdx].base, questionList[nextIdx].tone);
+        }, 300);
       }
     } else {
+      console.log("🏁 Kết thúc quiz!");
       finishQuiz();
     }
   };
@@ -560,6 +362,17 @@ export default function PinyinChartPage() {
     }
     finishQuiz();
   };
+
+  // Debug: Log state changes
+  useEffect(() => {
+    console.log("📊 State:", {
+      isGameRunning,
+      isQuizFinished,
+      questionCount: questionList.length,
+      currentQ: currentQ?.target,
+      quizIndex,
+    });
+  }, [isGameRunning, isQuizFinished, questionList, currentQ, quizIndex]);
 
   if (loading) {
     return (
