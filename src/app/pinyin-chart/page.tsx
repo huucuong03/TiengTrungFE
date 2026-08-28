@@ -138,19 +138,29 @@ export default function PinyinChartPage() {
     }, 2500);
   };
 
-  const allValidSyllables = data.rows.flatMap((row: any) =>
-    Object.keys(row)
-      .filter((k) => k !== "group" && k !== "initial")
-      .map((k) => row[k])
-      .filter((val) => typeof val === "string" && val.trim())
-  );
+  // Lấy danh sách âm tiết hợp lệ từ data
+  const getAllValidSyllables = (): string[] => {
+    const syllables: string[] = [];
+    data.rows.forEach((row: any) => {
+      Object.keys(row).forEach((key) => {
+        if (key !== "group" && key !== "initial") {
+          const val = row[key];
+          if (typeof val === "string" && val.trim()) {
+            syllables.push(val.trim());
+          }
+        }
+      });
+    });
+    return Array.from(new Set(syllables));
+  };
 
   const startQuiz = async (mode: ListeningMode = "mixed") => {
     clearAllTimers();
-    setListeningMode("mixed");
+    setListeningMode(mode);
     setLoading(true);
 
     try {
+      // Thử gọi API
       const res = await fetch(`https://tiengtrung-7hto.onrender.com/api/dictionary/pinyin-drills?mode=mixed`);
       const resData = await res.json();
       let questions: QuestionItem[] = [];
@@ -166,7 +176,13 @@ export default function PinyinChartPage() {
           meaning: q.meaning ? String(q.meaning) : undefined,
         }));
       } else {
+        // Fallback: Tạo câu hỏi từ dữ liệu local
         questions = buildRandomQuestionsFallback();
+      }
+
+      // Đảm bảo có đủ câu hỏi
+      if (!questions || questions.length === 0) {
+        throw new Error("Không thể tạo câu hỏi");
       }
 
       setQuestionList(questions);
@@ -180,16 +196,29 @@ export default function PinyinChartPage() {
       setIsQuizFinished(false);
       setIsGameRunning(true);
 
-      if (questions.length > 0) {
-        setTimeout(() => playAudioTwiceWith2sInterval(questions[0].base, questions[0].tone), 300);
+      // Phát âm câu hỏi đầu tiên
+      if (questions.length > 0 && questions[0].base) {
+        setTimeout(() => playAudioTwiceWith2sInterval(questions[0].base, questions[0].tone), 500);
       }
+    } catch (error) {
+      console.error("Lỗi khi tạo câu hỏi:", error);
+      message.error("Không thể tạo câu hỏi. Vui lòng thử lại!");
+      setIsGameRunning(false);
     } finally {
       setLoading(false);
     }
   };
 
   const buildRandomQuestionsFallback = (): QuestionItem[] => {
-    const pool: string[] = Array.from(new Set(allValidSyllables));
+    const pool = getAllValidSyllables();
+    
+    // Nếu không có dữ liệu, dùng danh sách mặc định
+    if (pool.length === 0) {
+      console.warn("Không có dữ liệu âm tiết, sử dụng danh sách mặc định");
+      const defaultPool = ["ba", "ma", "da", "na", "la", "ga", "ka", "ha", "ji", "qi", "xi", "zhi", "chi", "shi", "ri", "zi", "ci", "si", "yi", "wu", "yu", "ye", "yue", "yuan", "yin", "yun", "ying"];
+      defaultPool.forEach(s => pool.push(s));
+    }
+
     const generated: QuestionItem[] = [];
 
     // ✅ MỞ RỘNG: Nhóm âm dễ nhầm
@@ -225,7 +254,6 @@ export default function PinyinChartPage() {
       i: ["ia", "ian", "iang", "iao", "ie", "in", "ing", "iong", "iu"],
       u: ["ua", "uai", "uan", "uang", "ui", "un", "uo", "ong"],
       ü: ["üan", "üe", "ün", "iong"],
-      // Vần mũi
       an: ["ang", "en", "ian", "uan"],
       ang: ["an", "eng", "iang", "uang"],
       en: ["eng", "an", "in", "un"],
@@ -234,7 +262,6 @@ export default function PinyinChartPage() {
       ing: ["in", "eng", "iang"],
       un: ["ong", "en", "uan"],
       ong: ["un", "eng", "iong"],
-      // Vần kép
       ai: ["ei", "an", "ao"],
       ei: ["ai", "en", "ui"],
       ao: ["ou", "an", "iao"],
@@ -262,33 +289,33 @@ export default function PinyinChartPage() {
       "shi": ["si", "chi", "zhi", "xi"],
       "si": ["shi", "ci", "zi", "xi"],
       "chi": ["shi", "qi", "zhi", "ci"],
-      "zi": ["zhi", "ci", "si", "zi"],
-      "ci": ["si", "chi", "zi", "ci"],
-      "zhi": ["shi", "chi", "zi", "zhi"],
-      "ji": ["qi", "xi", "zhi", "ji"],
-      "qi": ["ji", "xi", "chi", "qi"],
-      "xi": ["ji", "qi", "shi", "xi"],
-      "ju": ["qu", "xu", "zhu", "ju"],
-      "qu": ["ju", "xu", "chu", "qu"],
-      "xu": ["ju", "qu", "shu", "xu"],
-      "ban": ["ben", "bin", "bang", "ban"],
-      "ben": ["ban", "bin", "beng", "ben"],
-      "bin": ["ban", "ben", "bing", "bin"],
-      "bang": ["beng", "bing", "ban", "bang"],
-      "beng": ["bang", "bing", "ben", "beng"],
-      "bing": ["bin", "bang", "beng", "bing"],
-      "dan": ["dan", "dang", "den", "deng"],
-      "dang": ["dang", "dan", "deng", "dong"],
-      "deng": ["deng", "dang", "dong", "den"],
-      "dong": ["dong", "deng", "dang", "dun"],
-      "tian": ["tian", "tiao", "tie", "ting"],
-      "tiao": ["tiao", "tian", "tie", "ting"],
-      "tie": ["tie", "tian", "tiao", "ting"],
-      "ting": ["ting", "tian", "tiao", "tie"],
-      "guan": ["guan", "guang", "gun", "guai"],
-      "guang": ["guang", "guan", "guai", "gun"],
-      "guai": ["guai", "guan", "guang", "gua"],
-      "gun": ["gun", "guan", "guang", "guen"],
+      "zi": ["zhi", "ci", "si"],
+      "ci": ["si", "chi", "zi"],
+      "zhi": ["shi", "chi", "zi"],
+      "ji": ["qi", "xi", "zhi"],
+      "qi": ["ji", "xi", "chi"],
+      "xi": ["ji", "qi", "shi"],
+      "ju": ["qu", "xu", "zhu"],
+      "qu": ["ju", "xu", "chu"],
+      "xu": ["ju", "qu", "shu"],
+      "ban": ["ben", "bin", "bang"],
+      "ben": ["ban", "bin", "beng"],
+      "bin": ["ban", "ben", "bing"],
+      "bang": ["beng", "bing", "ban"],
+      "beng": ["bang", "bing", "ben"],
+      "bing": ["bin", "bang", "beng"],
+      "dan": ["dang", "den", "deng"],
+      "dang": ["dan", "deng", "dong"],
+      "deng": ["dang", "dong", "den"],
+      "dong": ["deng", "dang", "dun"],
+      "tian": ["tiao", "tie", "ting"],
+      "tiao": ["tian", "tie", "ting"],
+      "tie": ["tian", "tiao", "ting"],
+      "ting": ["tian", "tiao", "tie"],
+      "guan": ["guang", "gun", "guai"],
+      "guang": ["guan", "guai", "gun"],
+      "guai": ["guan", "guang", "gua"],
+      "gun": ["guan", "guang"],
     };
 
     const getInitial = (syllable: string): string => {
@@ -313,6 +340,7 @@ export default function PinyinChartPage() {
       return tones;
     };
 
+    // Tạo câu hỏi
     for (let i = 0; i < TOTAL_QUESTIONS; i++) {
       // Chọn âm tiết có nhiều thanh có nghĩa
       let baseTarget = pool[Math.floor(Math.random() * pool.length)] || "ba";
@@ -388,9 +416,6 @@ export default function PinyinChartPage() {
         }
       }
 
-      // === BẪY 6: ĐẢO NGƯỢC PHỤ ÂM (VD: ba → ab) ===
-      // (không áp dụng vì tiếng Trung không có)
-
       // Nếu chưa đủ 3 đáp án nhiễu
       const remainingPool = pool.filter((s) => s !== baseTarget);
       let fallbackAttempts = 0;
@@ -434,34 +459,46 @@ export default function PinyinChartPage() {
         base: baseTarget,
         tone: chosenTone,
         options,
-        hanzi,
+        hanzi: hanzi || undefined,
         meaning: hanzi ? `Từ vựng Hán ngữ` : undefined,
       });
     }
 
     return generated;
   };
+
   const currentQ = questionList[quizIndex];
 
   // Timers Effect: Đếm ngược thời gian suy nghĩ
   useEffect(() => {
-    if (!isGameRunning || quizChecked || isQuizFinished) return;
+    if (!isGameRunning || quizChecked || isQuizFinished || !currentQ) return;
+    
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timerRef.current!);
-          handleTimeoutTrigger();
+          // Gọi timeout khi hết giờ
+          if (!quizChecked && currentQ) {
+            setQuizChecked(true);
+            setQuizSelected("Hết giờ");
+            setQuizHistory((prevHistory) => [
+              ...prevHistory,
+              { target: currentQ.target, selected: `Hết giờ (${THINKING_TIME_LIMIT}s)`, isCorrect: false, hanzi: currentQ.hanzi, meaning: currentQ.meaning },
+            ]);
+          }
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
+    
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [isGameRunning, quizIndex, quizChecked, isQuizFinished]);
+  }, [isGameRunning, quizIndex, quizChecked, isQuizFinished, currentQ]);
 
   // Timers Effect: Đếm ngược thời gian giải thích
   useEffect(() => {
     if (!isGameRunning || !quizChecked || isQuizFinished) return;
+    
     setExplanationTimeLeft(EXPLANATION_TIME);
     explanationTimerRef.current = setInterval(() => {
       setExplanationTimeLeft((prev) => {
@@ -473,18 +510,9 @@ export default function PinyinChartPage() {
         return prev - 1;
       });
     }, 1000);
+    
     return () => { if (explanationTimerRef.current) clearInterval(explanationTimerRef.current); };
   }, [isGameRunning, quizChecked, isQuizFinished]);
-
-  const handleTimeoutTrigger = () => {
-    if (quizChecked || !currentQ) return;
-    setQuizChecked(true);
-    setQuizSelected("Hết giờ");
-    setQuizHistory((prev) => [
-      ...prev,
-      { target: currentQ.target, selected: `Hết giờ (${THINKING_TIME_LIMIT}s)`, isCorrect: false, hanzi: currentQ.hanzi, meaning: currentQ.meaning },
-    ]);
-  };
 
   const handlePickOption = (selectedOption: string) => {
     if (quizChecked || !currentQ) return;
@@ -508,7 +536,10 @@ export default function PinyinChartPage() {
       setQuizSelected("");
       setQuizChecked(false);
       setTimeLeft(THINKING_TIME_LIMIT);
-      setTimeout(() => playAudioTwiceWith2sInterval(questionList[nextIdx].base, questionList[nextIdx].tone), 300);
+      // Phát âm câu hỏi tiếp theo
+      if (questionList[nextIdx] && questionList[nextIdx].base) {
+        setTimeout(() => playAudioTwiceWith2sInterval(questionList[nextIdx].base, questionList[nextIdx].tone), 300);
+      }
     } else {
       finishQuiz();
     }
