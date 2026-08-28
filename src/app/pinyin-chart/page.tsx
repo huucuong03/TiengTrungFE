@@ -59,7 +59,6 @@ export default function PinyinChartPage() {
   // HOOK TỰ ĐỘNG XỬ LÝ KHI RỜI TRANG / CHUYỂN TAB / ĐÓNG TRÌNH DUYỆT
   // -------------------------------------------------------------
   useEffect(() => {
-    // 1. Cảnh báo khi reload hoặc đóng tab khi đang làm bài
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isGameRunning && !isQuizFinished) {
         e.preventDefault();
@@ -67,7 +66,6 @@ export default function PinyinChartPage() {
       }
     };
 
-    // 2. Tạm dừng bộ đếm/âm thanh khi ẩn tab hoặc chuyển tab trình duyệt
     const handleVisibilityChange = () => {
       if (document.hidden && isGameRunning && !isQuizFinished) {
         clearAllTimers();
@@ -77,7 +75,6 @@ export default function PinyinChartPage() {
     window.addEventListener("beforeunload", handleBeforeUnload);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    // 3. Cleanup khi component unmount (chuyển trang trong ứng dụng)
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
@@ -155,28 +152,38 @@ export default function PinyinChartPage() {
   };
 
   const startQuiz = async (mode: ListeningMode = "mixed") => {
+    // Reset tất cả state
     clearAllTimers();
     setListeningMode(mode);
     setLoading(true);
+    setIsQuizFinished(false);
+    setIsGameRunning(false); // Tạm thời tắt game để reset
 
     try {
-      // Thử gọi API
-      const res = await fetch(`https://tiengtrung-7hto.onrender.com/api/dictionary/pinyin-drills?mode=mixed`);
-      const resData = await res.json();
       let questions: QuestionItem[] = [];
 
-      if (res.ok && resData.success && resData.questions?.length > 0) {
-        questions = resData.questions.map((q: any) => ({
-          id: Number(q.id),
-          target: String(q.target_pinyin || ""),
-          base: String(q.base_pinyin || ""),
-          tone: Number(q.tone || 1),
-          options: (q.options || []).map(String),
-          hanzi: q.hanzi ? String(q.hanzi) : getHanziForTone(String(q.base_pinyin), Number(q.tone)),
-          meaning: q.meaning ? String(q.meaning) : undefined,
-        }));
-      } else {
-        // Fallback: Tạo câu hỏi từ dữ liệu local
+      // Thử gọi API
+      try {
+        const res = await fetch(`https://tiengtrung-7hto.onrender.com/api/dictionary/pinyin-drills?mode=mixed`);
+        const resData = await res.json();
+
+        if (res.ok && resData.success && resData.questions?.length > 0) {
+          questions = resData.questions.map((q: any) => ({
+            id: Number(q.id),
+            target: String(q.target_pinyin || ""),
+            base: String(q.base_pinyin || ""),
+            tone: Number(q.tone || 1),
+            options: (q.options || []).map(String),
+            hanzi: q.hanzi ? String(q.hanzi) : getHanziForTone(String(q.base_pinyin), Number(q.tone)),
+            meaning: q.meaning ? String(q.meaning) : undefined,
+          }));
+        }
+      } catch (apiError) {
+        console.log("API không hoạt động, sử dụng fallback:", apiError);
+      }
+
+      // Nếu API không trả về câu hỏi, dùng fallback
+      if (!questions || questions.length === 0) {
         questions = buildRandomQuestionsFallback();
       }
 
@@ -185,6 +192,7 @@ export default function PinyinChartPage() {
         throw new Error("Không thể tạo câu hỏi");
       }
 
+      // Cập nhật state
       setQuestionList(questions);
       setQuizIndex(0);
       setCorrectCount(0);
@@ -193,13 +201,20 @@ export default function PinyinChartPage() {
       setQuizChecked(false);
       setTimeLeft(THINKING_TIME_LIMIT);
       setExplanationTimeLeft(EXPLANATION_TIME);
-      setIsQuizFinished(false);
+      
+      // BẮT ĐẦU GAME - ĐẢM BẢO currentQ có giá trị
       setIsGameRunning(true);
+      setIsQuizFinished(false);
 
-      // Phát âm câu hỏi đầu tiên
+      // Phát âm câu hỏi đầu tiên sau khi game đã chạy
       if (questions.length > 0 && questions[0].base) {
-        setTimeout(() => playAudioTwiceWith2sInterval(questions[0].base, questions[0].tone), 500);
+        setTimeout(() => {
+          if (isGameRunning) {
+            playAudioTwiceWith2sInterval(questions[0].base, questions[0].tone);
+          }
+        }, 500);
       }
+
     } catch (error) {
       console.error("Lỗi khi tạo câu hỏi:", error);
       message.error("Không thể tạo câu hỏi. Vui lòng thử lại!");
@@ -223,7 +238,6 @@ export default function PinyinChartPage() {
 
     // ✅ MỞ RỘNG: Nhóm âm dễ nhầm
     const confusingGroups: Record<string, string[]> = {
-      // Thanh mẫu
       z: ["c", "s", "zh"],
       c: ["z", "s", "ch"],
       s: ["z", "c", "sh"],
@@ -247,7 +261,6 @@ export default function PinyinChartPage() {
       r: ["l", "n", "y"],
       y: ["w", "r", "l"],
       w: ["y", "r", "m"],
-      // Vần
       a: ["ai", "an", "ang", "ao"],
       o: ["ou", "ong", "uo"],
       e: ["ei", "en", "eng", "er"],
@@ -284,7 +297,6 @@ export default function PinyinChartPage() {
       iong: ["iong", "ong", "ing"],
     };
 
-    // ✅ MỞ RỘNG: Âm tiết tương tự
     const similarSyllables: Record<string, string[]> = {
       "shi": ["si", "chi", "zhi", "xi"],
       "si": ["shi", "ci", "zi", "xi"],
@@ -328,7 +340,6 @@ export default function PinyinChartPage() {
       return syllable.replace(initial, "");
     };
 
-    // ✅ HÀM MỚI: Lấy danh sách thanh có nghĩa
     const getValidTones = (syllable: string): number[] => {
       const tones: number[] = [];
       for (let t = 1; t <= 4; t++) {
@@ -342,7 +353,6 @@ export default function PinyinChartPage() {
 
     // Tạo câu hỏi
     for (let i = 0; i < TOTAL_QUESTIONS; i++) {
-      // Chọn âm tiết có nhiều thanh có nghĩa
       let baseTarget = pool[Math.floor(Math.random() * pool.length)] || "ba";
       let attempts = 0;
       while (attempts < 20) {
@@ -360,7 +370,7 @@ export default function PinyinChartPage() {
       const targetWithTone = applyToneToSyllable(baseTarget, chosenTone);
       const distractorSet = new Set<string>();
 
-      // === BẪY 1: CÙNG ÂM GỐC, KHÁC THANH ===
+      // Các bẫy
       const otherTones = [1, 2, 3, 4].filter((t) => t !== chosenTone);
       for (const ot of otherTones) {
         const hanzi = getHanziForTone(baseTarget, ot);
@@ -369,7 +379,6 @@ export default function PinyinChartPage() {
         }
       }
 
-      // === BẪY 2: NHẦM PHỤ ÂM ĐẦU ===
       const initial = getInitial(baseTarget);
       const confuseInitials = confusingGroups[initial] || [];
       for (const ci of confuseInitials) {
@@ -382,7 +391,6 @@ export default function PinyinChartPage() {
         }
       }
 
-      // === BẪY 3: NHẦM VẦN ===
       const finalPart = getFinal(baseTarget);
       const confuseFinals = confusingGroups[finalPart] || [];
       for (const cf of confuseFinals) {
@@ -395,7 +403,6 @@ export default function PinyinChartPage() {
         }
       }
 
-      // === BẪY 4: ÂM TIẾT TƯƠNG TỰ ===
       const similar = similarSyllables[baseTarget] || [];
       for (const sim of similar) {
         if (pool.includes(sim)) {
@@ -406,7 +413,6 @@ export default function PinyinChartPage() {
         }
       }
 
-      // === BẪY 5: THANH ĐIỆU NGƯỢC (thanh 1↔4, thanh 2↔3) ===
       const oppositeTones: Record<number, number> = { 1: 4, 2: 3, 3: 2, 4: 1 };
       const oppTone = oppositeTones[chosenTone];
       if (oppTone) {
@@ -416,7 +422,6 @@ export default function PinyinChartPage() {
         }
       }
 
-      // Nếu chưa đủ 3 đáp án nhiễu
       const remainingPool = pool.filter((s) => s !== baseTarget);
       let fallbackAttempts = 0;
       while (distractorSet.size < 3 && remainingPool.length > 0 && fallbackAttempts < 30) {
@@ -431,7 +436,6 @@ export default function PinyinChartPage() {
         fallbackAttempts++;
       }
 
-      // Đảm bảo luôn có 4 đáp án
       const optionsArray = [targetWithTone, ...Array.from(distractorSet)];
       while (optionsArray.length < 4) {
         const randomBase = pool[Math.floor(Math.random() * pool.length)] || "ba";
@@ -442,7 +446,6 @@ export default function PinyinChartPage() {
             optionsArray.push(candidate);
           }
         } else {
-          // Nếu không có chữ Hán, thử âm tiết khác
           const fallback = pool[Math.floor(Math.random() * pool.length)] || "ma";
           const candidate = applyToneToSyllable(fallback, chosenTone);
           if (!optionsArray.includes(candidate)) {
@@ -477,7 +480,6 @@ export default function PinyinChartPage() {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timerRef.current!);
-          // Gọi timeout khi hết giờ
           if (!quizChecked && currentQ) {
             setQuizChecked(true);
             setQuizSelected("Hết giờ");
@@ -536,7 +538,6 @@ export default function PinyinChartPage() {
       setQuizSelected("");
       setQuizChecked(false);
       setTimeLeft(THINKING_TIME_LIMIT);
-      // Phát âm câu hỏi tiếp theo
       if (questionList[nextIdx] && questionList[nextIdx].base) {
         setTimeout(() => playAudioTwiceWith2sInterval(questionList[nextIdx].base, questionList[nextIdx].tone), 300);
       }
